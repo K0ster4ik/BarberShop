@@ -22,7 +22,8 @@ npm run dev            # http://localhost:3000
 Проверка, что приложение видит БД: http://localhost:3000/api/health
 
 Повторный `npm run db:seed` сбрасывает данные к исходному демо-состоянию.
-Демо-пользователи: `owner@demo.ru`, `admin@demo.ru`, `master@demo.ru`, пароли берутся из `.env`.
+
+CRM: http://localhost:3000/admin. Демо-пользователи: `owner@demo.ru`, `admin@demo.ru`, `master@demo.ru`, пароли берутся из `.env` (`DEMO_*_PASSWORD`).
 
 ## Скрипты
 

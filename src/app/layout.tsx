@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Барбершоп",
+  title: { default: "Барбершоп", template: "%s — Барбершоп" },
   description: "Онлайн-запись в барбершоп",
 };
 

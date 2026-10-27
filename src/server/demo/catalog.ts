@@ -38,6 +38,15 @@ export const DEMO_USERS = [
 
 export type DemoUserKey = (typeof DEMO_USERS)[number]["key"];
 
+export const DEMO_USER_IDS: readonly string[] = DEMO_USERS.map(
+  (user) => user.id,
+);
+
+/** Общая демо-учётка: в режиме демо её нельзя «угнать» (сменить пароль, выкинуть чужие сессии). */
+export function isDemoUser(userId: string): boolean {
+  return DEMO_USER_IDS.includes(userId);
+}
+
 export const CATEGORIES = [
   "Стрижки",
   "Борода",

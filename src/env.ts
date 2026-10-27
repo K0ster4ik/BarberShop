@@ -9,6 +9,9 @@ const envSchema = z.object({
     .default("development"),
   DATABASE_URL: z.url(),
   APP_URL: z.url(),
+  BETTER_AUTH_SECRET: z.string().min(32),
+  // Ограничения для общих демо-учёток (DESIGN.md, раздел 10).
+  DEMO_MODE: z.stringbool().default(false),
 });
 
 const parsed = envSchema.safeParse(process.env);

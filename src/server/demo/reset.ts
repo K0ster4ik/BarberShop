@@ -1,6 +1,6 @@
 import { hashPassword } from "better-auth/crypto";
 import type { Prisma, PrismaClient } from "@/generated/prisma/client";
-import { DEMO_USERS, type DemoUserKey } from "./catalog";
+import { DEMO_USER_IDS, DEMO_USERS, type DemoUserKey } from "./catalog";
 import { generateDemoData } from "./generate";
 
 // Сброс демо (DESIGN.md, раздел 13). Используется сидом и cron-эндпоинтом.
@@ -14,8 +14,6 @@ export type DemoResetSummary = {
   bookings: number;
   payments: number;
 };
-
-const DEMO_USER_IDS = DEMO_USERS.map((user) => user.id);
 
 /** Удаляет все бизнес-данные; порядок учитывает внешние ключи с ON DELETE RESTRICT. */
 export async function clearBusinessData(
@@ -63,7 +61,9 @@ export async function resetDemoData(
   await db.$transaction(
     async (tx) => {
       await clearBusinessData(tx);
-      await tx.user.deleteMany({ where: { id: { notIn: DEMO_USER_IDS } } });
+      await tx.user.deleteMany({
+        where: { id: { notIn: [...DEMO_USER_IDS] } },
+      });
 
       for (const user of DEMO_USERS) {
         const profile = {
