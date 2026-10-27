@@ -1,11 +1,202 @@
-// Схема БД: сайт барбершопа + CRM.
-// Модели добавляются на этапе 2 (см. DESIGN.md, раздел 5).
+// Схема БД: сайт барбершопа + CRM
+// Postgres + Prisma. Деньги хранятся в копейках (Int), время — в timestamptz.
 
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────── Перечисления ───────────────
+
+enum Role {
+  OWNER  // владелец: всё, включая аналитику и деньги
+  ADMIN  // администратор: записи, клиенты, расписание
+  MASTER // мастер: видит только свои записи
+}
+
+enum BookingStatus {
+  PENDING   // создана с сайта, ждёт подтверждения
+  CONFIRMED // подтверждена
+  COMPLETED // клиент пришёл, услуга оказана
+  CANCELLED // отменена
+  NO_SHOW   // клиент не пришёл
+}
+
+enum BookingSource {
+  WEBSITE // запись с сайта
+  PHONE   // по телефону, внёс админ
+  WALK_IN // пришёл с улицы
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+  ONLINE
+}
+
+// ─────────────── Персонал и доступ ───────────────
+
+// Учётные записи сотрудников (вход в админку/CRM).
+// Клиенты аккаунтов не имеют — их узнаём по телефону.
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String?
+  name         String
+  role         Role     @default(ADMIN)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now()) @db.Timestamptz(3)
+
+  master Master? // если пользователь — мастер
+}
+
+model Master {
+  id        String  @id @default(cuid())
+  userId    String? @unique
+  name      String
+  photoUrl  String?
+  bio       String?
+  isActive  Boolean @default(true)
+  sortOrder Int     @default(0) // порядок вывода на сайте
+
+  user         User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
+  services     MasterService[]
+  workingHours WorkingHours[]
+  timeOffs     TimeOff[]
+  bookings     Booking[]
+}
+
+// ─────────────── Услуги ───────────────
+
+model Service {
+  id          String  @id @default(cuid())
+  name        String  // «Мужская стрижка», «Борода», «Камуфляж седины»
+  description String?
+  durationMin Int     // базовая длительность
+  price       Int     // базовая цена, в копейках
+  isActive    Boolean @default(true)
+  sortOrder   Int     @default(0)
+
+  masters      MasterService[]
+  bookingItems BookingItem[]
+}
+
+// Какие услуги делает мастер. Можно переопределить цену/длительность
+// (например, топ-мастер стрижёт дороже и быстрее).
+model MasterService {
+  masterId       String
+  serviceId      String
+  customPrice    Int?
+  customDuration Int?
+
+  master  Master  @relation(fields: [masterId], references: [id], onDelete: Cascade)
+  service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@id([masterId, serviceId])
+}
+
+// ─────────────── Расписание ───────────────
+
+// Рабочие часы по дням недели. Время — минуты от полуночи (600 = 10:00).
+// Несколько интервалов в день = смена с перерывом.
+model WorkingHours {
+  id       String @id @default(cuid())
+  masterId String
+  weekday  Int    // 0 = Пн ... 6 = Вс
+  startMin Int
+  endMin   Int
+
+  master Master @relation(fields: [masterId], references: [id], onDelete: Cascade)
+
+  @@index([masterId, weekday])
+}
+
+// Отпуска, больничные, разовые перерывы.
+model TimeOff {
+  id       String   @id @default(cuid())
+  masterId String
+  startsAt DateTime @db.Timestamptz(3)
+  endsAt   DateTime @db.Timestamptz(3)
+  reason   String?
+
+  master Master @relation(fields: [masterId], references: [id], onDelete: Cascade)
+
+  @@index([masterId, startsAt])
+}
+
+// ─────────────── Клиенты (CRM) ───────────────
+
+model Client {
+  id             String    @id @default(cuid())
+  name           String
+  phone          String    @unique // нормализованный: +79991234567
+  email          String?
+  telegramChatId String?   // для напоминаний через бота
+  birthday       DateTime? @db.Date
+  notes          String?   // «любит покороче, без разговоров»
+  tags           String[]  // «VIP», «скидка 10%», «проблемный»
+  marketingOptIn Boolean   @default(false)
+  createdAt      DateTime  @default(now()) @db.Timestamptz(3)
+
+  bookings Booking[]
+}
+
+// ─────────────── Записи ───────────────
+
+model Booking {
+  id          String        @id @default(cuid())
+  clientId    String
+  masterId    String
+  startsAt    DateTime      @db.Timestamptz(3)
+  endsAt      DateTime      @db.Timestamptz(3) // = startsAt + сумма длительностей
+  status      BookingStatus @default(PENDING)
+  source      BookingSource @default(WEBSITE)
+  totalPrice  Int           // итог в копейках, фиксируется при записи
+  comment     String?       // комментарий клиента
+  cancelledAt DateTime?     @db.Timestamptz(3)
+  createdAt   DateTime      @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime      @updatedAt @db.Timestamptz(3)
+
+  client   Client        @relation(fields: [clientId], references: [id])
+  master   Master        @relation(fields: [masterId], references: [id])
+  items    BookingItem[]
+  payments Payment[]
+
+  @@index([masterId, startsAt]) // расписание мастера
+  @@index([clientId, startsAt]) // история клиента
+  @@index([status, startsAt])   // отчёты
+  // Защита от пересечений — отдельной SQL-миграцией (см. no_overlap.sql)
+}
+
+// Услуги внутри записи. Цена и длительность копируются на момент записи,
+// чтобы смена прайса не переписала историю и выручку.
+model BookingItem {
+  id          String @id @default(cuid())
+  bookingId   String
+  serviceId   String
+  price       Int
+  durationMin Int
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  service Service @relation(fields: [serviceId], references: [id])
+
+  @@index([bookingId])
+}
+
+// ─────────────── Оплаты ───────────────
+
+model Payment {
+  id        String        @id @default(cuid())
+  bookingId String
+  amount    Int           // в копейках
+  method    PaymentMethod
+  paidAt    DateTime      @default(now()) @db.Timestamptz(3)
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([paidAt])
 }
