@@ -13,6 +13,26 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    include: ["tests/unit/**/*.test.ts"],
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: "unit",
+          include: ["tests/unit/**/*.test.ts"],
+        },
+      },
+      {
+        // Нужен Postgres из docker-compose.dev.yml (npm run db:up).
+        extends: true,
+        test: {
+          name: "integration",
+          include: ["tests/integration/**/*.test.ts"],
+          globalSetup: ["tests/integration/global-setup.ts"],
+          fileParallelism: false,
+          testTimeout: 60_000,
+          hookTimeout: 120_000,
+        },
+      },
+    ],
   },
 });

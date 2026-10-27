@@ -37,6 +37,11 @@ export function rublesToKopecks(rubles: number): number {
   return Math.round(rubles * 100);
 }
 
+/** Скидка округляется до целого рубля в пользу клиента (DESIGN.md, 7.3). */
+export function roundDiscountUp(kopecks: number): number {
+  return Math.ceil(kopecks / 100) * 100;
+}
+
 /** Копейки → рубли для полей ввода. */
 export function kopecksToRubles(kopecks: number): number {
   assertKopecks(kopecks);

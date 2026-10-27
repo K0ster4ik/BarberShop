@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { formatMoney, kopecksToRubles, rublesToKopecks } from "@/lib/money";
+import {
+  formatMoney,
+  kopecksToRubles,
+  roundDiscountUp,
+  rublesToKopecks,
+} from "@/lib/money";
 
 // Intl ставит неразрывные пробелы; для сравнения приводим их к обычным.
 const plain = (value: string) => value.replace(/\s/gu, " ");
@@ -34,6 +39,15 @@ describe("rublesToKopecks", () => {
 
   it("rejects non-finite values", () => {
     expect(() => rublesToKopecks(Number.POSITIVE_INFINITY)).toThrow(RangeError);
+  });
+});
+
+describe("roundDiscountUp", () => {
+  it("rounds up to a whole ruble", () => {
+    expect(roundDiscountUp(27_750)).toBe(27_800);
+    expect(roundDiscountUp(27_800)).toBe(27_800);
+    expect(roundDiscountUp(1)).toBe(100);
+    expect(roundDiscountUp(0)).toBe(0);
   });
 });
 
