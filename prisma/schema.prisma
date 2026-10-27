@@ -1,0 +1,11 @@
+// Схема БД: сайт барбершопа + CRM.
+// Модели добавляются на этапе 2 (см. DESIGN.md, раздел 5).
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
