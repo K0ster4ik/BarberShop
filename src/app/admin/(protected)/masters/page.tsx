@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
-import { MasterAvatar } from "@/components/admin/masters/master-avatar";
+import { MasterAvatar } from "@/components/master-avatar";
 import { NewMasterButton } from "@/components/admin/masters/new-master-button";
 import { PageHeader } from "@/components/admin/page-header";
 import { PageSkeleton } from "@/components/admin/page-skeleton";

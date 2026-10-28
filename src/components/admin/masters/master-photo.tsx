@@ -6,7 +6,7 @@ import { ConfirmAction } from "@/components/forms/dialogs";
 import { runWithToast } from "@/components/forms/submit";
 import { Button } from "@/components/ui/button";
 import { deleteMasterPhoto, uploadMasterPhoto } from "@/server/masters/actions";
-import { MasterAvatar } from "./master-avatar";
+import { MasterAvatar } from "@/components/master-avatar";
 
 const ACCEPT = "image/jpeg,image/png,image/webp";
 const MAX_BYTES = 5 * 1024 * 1024;

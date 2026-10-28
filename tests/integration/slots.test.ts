@@ -11,7 +11,7 @@ import {
 import { isBookingOverlapError } from "@/server/bookings/errors";
 import { ACTIVE_BOOKING_STATUSES } from "@/server/bookings/status";
 import { getAvailableSlots } from "@/server/slots/available";
-import { loadMasterDays } from "@/server/slots/load";
+import { loadMasterDays, loadMasterSchedule } from "@/server/slots/load";
 import { seedDemo, TEST_NOW } from "./fixtures";
 import { createTestDb } from "./test-db";
 
@@ -143,6 +143,17 @@ describe("slots on demo data", () => {
       await db.booking.deleteMany({
         where: { id: { in: ghosts.map((ghost) => ghost.id) } },
       });
+    }
+  });
+
+  it("loads a date range exactly like day by day", async () => {
+    const last = addDays(today, 6);
+    const schedule = await loadMasterSchedule(db, masterIds, today, last);
+    for (let offset = 0; offset <= 6; offset++) {
+      const date = addDays(today, offset);
+      expect(schedule(date), date).toEqual(
+        await loadMasterDays(db, masterIds, date),
+      );
     }
   });
 

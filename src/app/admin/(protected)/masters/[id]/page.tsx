@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { forbidden, notFound } from "next/navigation";
 import { Suspense } from "react";
-import { MasterAvatar } from "@/components/admin/masters/master-avatar";
+import { MasterAvatar } from "@/components/master-avatar";
 import { MasterPhoto } from "@/components/admin/masters/master-photo";
 import { MasterProfileForm } from "@/components/admin/masters/master-profile-form";
 import {

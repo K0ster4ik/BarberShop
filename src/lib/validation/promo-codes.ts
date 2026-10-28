@@ -1,6 +1,9 @@
 import { z } from "zod";
 import { discountKindField, optionalDateField, refineDiscount } from "./common";
 
+/** Промокод хранится в верхнем регистре: «welcome10» и «WELCOME10» — один код. */
+export const PROMO_CODE_PATTERN = /^[A-Z0-9_-]{3,20}$/;
+
 export const promoCodeSchema = z
   .object({
     code: z
@@ -8,7 +11,7 @@ export const promoCodeSchema = z
       .trim()
       .toUpperCase()
       .regex(
-        /^[A-Z0-9_-]{3,20}$/,
+        PROMO_CODE_PATTERN,
         "3–20 символов: латинские буквы, цифры, дефис или подчёркивание",
       ),
     kind: discountKindField,

@@ -2,7 +2,9 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-@custom-variant dark (&:is(.dark *));
+/* Тёмная тема — только у сайта: next-themes ставит data-theme на <html>.
+   Админка всегда светлая (data-theme="admin"), см. src/components/theme-provider.tsx. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
 @theme inline {
   --color-background: var(--background);
@@ -85,38 +87,49 @@
   --sidebar-ring: oklch(0.708 0 0);
 }
 
-.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+/* Сайт: «Тёмный премиум» и его светлая вариация (docs/design/booking-concept-*.webp).
+   Контраст проверен по WCAG AA: текст от 5,6:1, рамки полей от 3,1:1. */
+[data-theme="light"] {
+  --background: oklch(0.968 0.012 80);
+  --foreground: oklch(0.24 0.015 60);
+  --card: oklch(0.987 0.006 80);
+  --card-foreground: oklch(0.24 0.015 60);
+  --popover: oklch(0.987 0.006 80);
+  --popover-foreground: oklch(0.24 0.015 60);
+  --primary: oklch(0.5 0.09 65);
+  --primary-foreground: oklch(0.985 0.005 80);
+  --secondary: oklch(0.93 0.018 78);
+  --secondary-foreground: oklch(0.24 0.015 60);
+  --muted: oklch(0.94 0.014 78);
+  --muted-foreground: oklch(0.47 0.025 65);
+  --accent: oklch(0.92 0.025 78);
+  --accent-foreground: oklch(0.24 0.015 60);
+  --destructive: oklch(0.53 0.2 27);
+  --border: oklch(0.87 0.02 75);
+  --input: oklch(0.62 0.03 70);
+  --ring: oklch(0.6 0.1 70);
+}
+
+[data-theme="dark"] {
+  --background: oklch(0.18 0.006 250);
+  --foreground: oklch(0.94 0.012 80);
+  --card: oklch(0.22 0.007 250);
+  --card-foreground: oklch(0.94 0.012 80);
+  --popover: oklch(0.24 0.008 250);
+  --popover-foreground: oklch(0.94 0.012 80);
+  --primary: oklch(0.78 0.12 78);
+  --primary-foreground: oklch(0.2 0.01 60);
+  --secondary: oklch(0.28 0.008 250);
+  --secondary-foreground: oklch(0.94 0.012 80);
+  --muted: oklch(0.27 0.008 250);
+  --muted-foreground: oklch(0.73 0.02 75);
+  --accent: oklch(0.3 0.01 250);
+  --accent-foreground: oklch(0.94 0.012 80);
+  --destructive: oklch(0.7 0.19 22);
+  --border: oklch(0.32 0.008 250);
+  --input: oklch(0.52 0.01 250);
+  --ring: oklch(0.78 0.12 78);
+  color-scheme: dark;
 }
 
 @layer base {

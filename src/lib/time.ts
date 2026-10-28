@@ -125,6 +125,20 @@ const dateTimeFormat = new Intl.DateTimeFormat("ru-RU", {
   minute: "2-digit",
 });
 
+const visitFormat = new Intl.DateTimeFormat("ru-RU", {
+  timeZone: salon.timezone,
+  weekday: "short",
+  day: "numeric",
+  month: "long",
+  hour: "2-digit",
+  minute: "2-digit",
+});
+
+/** «ср, 4 ноября в 14:15» по часам салона — время визита для клиента. */
+export function formatSalonVisit(instant: Date): string {
+  return visitFormat.format(instant);
+}
+
 /** «3 ноября 2026 г.» по часам салона. */
 export function formatSalonDate(instant: Date): string {
   return dateFormat.format(instant);
