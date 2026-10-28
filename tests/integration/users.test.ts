@@ -98,6 +98,29 @@ describe("createUser", () => {
     expect(error.field).toBe("masterId");
   });
 
+  it("gives a free master card to only one of two parallel requests", async () => {
+    const results = await Promise.allSettled(
+      ["race-1@example.com", "race-2@example.com"].map((email) =>
+        createUser(
+          db,
+          newUser({ email, role: "MASTER", masterId: freeMasterId }),
+        ),
+      ),
+    );
+    const created = results.flatMap((r) =>
+      r.status === "fulfilled" ? [r.value.id] : [],
+    );
+    expect(created).toHaveLength(1);
+    expect(
+      (await db.master.findUniqueOrThrow({ where: { id: freeMasterId } }))
+        .userId,
+    ).toBe(created[0]);
+    // Проигравший запрос откатился целиком: сотрудника-мастера без карточки нет
+    expect(
+      await db.user.count({ where: { email: { startsWith: "race-" } } }),
+    ).toBe(1);
+  });
+
   it("rejects a duplicate email", async () => {
     const error = await domainError(
       createUser(db, newUser({ email: "owner@demo.ru" })),
@@ -149,6 +172,30 @@ describe("updateUser", () => {
       }),
     );
     expect(error.message).toMatch(/владелец/);
+  });
+
+  it("does not let two owners disable each other at the same time", async () => {
+    const { id } = await createUser(
+      db,
+      newUser({ email: "owner-2@example.com", role: "OWNER" }),
+    );
+    const second: StaffUser = { ...owner, id, name: "Второй владелец" };
+    const disable = (actor: StaffUser, target: StaffUser) =>
+      updateUser(db, demoOff, actor, target.id, {
+        name: target.name,
+        role: "OWNER",
+        isActive: false,
+        masterId: "",
+      });
+
+    const results = await Promise.allSettled([
+      disable(owner, second),
+      disable(second, owner),
+    ]);
+    expect(results.filter((r) => r.status === "rejected")).toHaveLength(1);
+    expect(
+      await db.user.count({ where: { role: "OWNER", isActive: true } }),
+    ).toBe(1);
   });
 
   it("signs a deactivated employee out everywhere", async () => {

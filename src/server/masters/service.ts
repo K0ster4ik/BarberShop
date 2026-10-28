@@ -379,7 +379,7 @@ export async function deleteTimeOff(
     where: { id: timeOffId },
     select: { masterId: true },
   });
-  if (!timeOff) throw new DomainError("Перерыв не найден");
+  if (!timeOff) throw new DomainError("Отсутствие не найдено");
   assertOwnMaster(staff, timeOff.masterId);
   await db.timeOff.delete({ where: { id: timeOffId } });
 }

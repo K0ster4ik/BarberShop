@@ -6,6 +6,7 @@ import { useForm } from "react-hook-form";
 import { PageHeader } from "@/components/admin/page-header";
 import { ConfirmAction, FormDialog } from "@/components/forms/dialogs";
 import {
+  FormSubmit,
   NumberField,
   SelectField,
   SwitchField,
@@ -31,6 +32,7 @@ import {
   saveService,
 } from "@/server/catalog/actions";
 import type { listCatalog } from "@/server/catalog/service";
+import { MetaLine } from "@/components/admin/meta-line";
 
 type Category = Awaited<ReturnType<typeof listCatalog>>[number];
 type Service = Category["services"][number];
@@ -84,7 +86,7 @@ export function ServicesView({ categories }: { categories: Category[] }) {
         <Card key={category.id}>
           <CardHeader className="flex flex-row items-center justify-between gap-2">
             <CardTitle className="text-lg">{category.name}</CardTitle>
-            <div className="flex gap-1">
+            <div className="flex gap-3">
               <FormDialog
                 title="Категория"
                 trigger={
@@ -150,7 +152,7 @@ function ServiceRow({
     `${service.durationMin} мин`,
     service.bufferMin !== null ? `уборка ${service.bufferMin} мин` : null,
     `${masters} ${plural(masters, ["мастер", "мастера", "мастеров"])}`,
-  ].filter(Boolean);
+  ];
 
   return (
     <li className="flex items-center gap-3 py-3">
@@ -159,7 +161,7 @@ function ServiceRow({
           <span className="font-medium">{service.name}</span>
           {!service.isActive && <Badge variant="secondary">Скрыта</Badge>}
         </div>
-        <p className="text-sm text-muted-foreground">{details.join(" · ")}</p>
+        <MetaLine parts={details} />
       </div>
       <span className="shrink-0 tabular-nums">
         {formatMoney(service.price)}
@@ -221,9 +223,7 @@ function CategoryForm({
           label="Порядок"
           description="Категории с меньшим числом показываются выше."
         />
-        <Button type="submit" disabled={form.formState.isSubmitting}>
-          Сохранить
-        </Button>
+        <FormSubmit pending={form.formState.isSubmitting}>Сохранить</FormSubmit>
       </FieldGroup>
     </form>
   );
@@ -274,7 +274,7 @@ function ServiceForm({
           control={form.control}
           name="description"
           label="Описание"
-          description="Показывается клиентам на сайте."
+          description="Необязательно. Показывается клиентам на сайте."
         />
         <div className="grid gap-4 sm:grid-cols-2">
           <NumberField
@@ -294,7 +294,7 @@ function ServiceForm({
           <NumberField
             control={form.control}
             name="bufferMin"
-            label="Уборка после"
+            label="Уборка после услуги"
             suffix="мин"
             step={5}
             nullable
@@ -304,18 +304,16 @@ function ServiceForm({
           <NumberField
             control={form.control}
             name="sortOrder"
-            label="Порядок"
+            label="Порядок в списке"
           />
         </div>
         <SwitchField
           control={form.control}
           name="isActive"
-          label="Показывать в записи"
-          description="Скрытая услуга остаётся в истории записей, но её нельзя выбрать."
+          label="Доступна для записи"
+          description="Выключенная услуга остаётся в истории записей, но для новых записей её не выбрать."
         />
-        <Button type="submit" disabled={form.formState.isSubmitting}>
-          Сохранить
-        </Button>
+        <FormSubmit pending={form.formState.isSubmitting}>Сохранить</FormSubmit>
       </FieldGroup>
     </form>
   );

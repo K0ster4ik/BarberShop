@@ -13,7 +13,12 @@ const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 function parseDate(date: DateString): Date {
   const parsed = new Date(`${date}T00:00:00Z`);
-  if (!DATE_PATTERN.test(date) || Number.isNaN(parsed.getTime())) {
+  // Обратное сравнение отсекает несуществующие дни: Date переносит 31.02 на 3 марта.
+  if (
+    !DATE_PATTERN.test(date) ||
+    Number.isNaN(parsed.getTime()) ||
+    parsed.toISOString().slice(0, 10) !== date
+  ) {
     throw new RangeError(`Invalid date string: ${date}`);
   }
   return parsed;
@@ -95,7 +100,8 @@ const dateFormat = new Intl.DateTimeFormat("ru-RU", {
 const dateTimeFormat = new Intl.DateTimeFormat("ru-RU", {
   timeZone: salon.timezone,
   day: "numeric",
-  month: "short",
+  month: "long",
+  year: "numeric",
   hour: "2-digit",
   minute: "2-digit",
 });
@@ -105,9 +111,14 @@ export function formatSalonDate(instant: Date): string {
   return dateFormat.format(instant);
 }
 
-/** «3 нояб., 10:00» по часам салона. */
-export function formatSalonDateTime(instant: Date): string {
-  return dateTimeFormat.format(instant);
+/** «5–9 ноября 2026 г.», «30 июня – 27 сентября 2026 г.»: общие части Intl не повторяет. */
+export function formatSalonDateRange(start: Date, end: Date): string {
+  return dateFormat.formatRange(start, end);
+}
+
+/** «30 октября 2026 г., 12:00–14:00» по часам салона. */
+export function formatSalonDateTimeRange(start: Date, end: Date): string {
+  return dateTimeFormat.formatRange(start, end);
 }
 
 export function addMinutes(instant: Date, minutes: number): Date {

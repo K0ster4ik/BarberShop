@@ -16,12 +16,10 @@ export function MasterPhoto({
   masterId,
   name,
   photoPath,
-  editable,
 }: {
   masterId: string;
   name: string;
   photoPath: string | null;
-  editable: boolean;
 }) {
   const input = useRef<HTMLInputElement>(null);
   const [pending, startTransition] = useTransition();
@@ -46,56 +44,46 @@ export function MasterPhoto({
         photoPath={photoPath}
         className={pending ? "opacity-50" : undefined}
       />
-      {editable && (
-        <>
-          <input
-            ref={input}
-            type="file"
-            accept={ACCEPT}
-            className="sr-only"
-            aria-label="Файл с фотографией"
-            onChange={(event) => {
-              const file = event.target.files?.[0];
-              if (file) upload(file);
-              event.target.value = "";
-            }}
-          />
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={pending}
-            onClick={() => input.current?.click()}
-          >
-            <ImageUp aria-hidden />
-            {pending
-              ? "Загружаем…"
-              : photoPath
-                ? "Заменить фото"
-                : "Загрузить фото"}
-          </Button>
-          {photoPath && (
-            <ConfirmAction
-              title="Удалить фото?"
-              description="На сайте вместо фото будут инициалы мастера."
-              action={() => deleteMasterPhoto(masterId)}
-              trigger={
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  disabled={pending}
-                >
-                  <Trash2 aria-hidden /> Удалить фото
-                </Button>
-              }
-            />
-          )}
-          <p className="text-xs text-muted-foreground">
-            JPEG, PNG или WebP до 5 МБ. Обрежем до вертикального кадра 4:5.
-          </p>
-        </>
+      <input
+        ref={input}
+        type="file"
+        accept={ACCEPT}
+        className="sr-only"
+        aria-label="Файл с фотографией"
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          if (file) upload(file);
+          event.target.value = "";
+        }}
+      />
+      <Button
+        type="button"
+        variant="outline"
+        disabled={pending}
+        onClick={() => input.current?.click()}
+      >
+        <ImageUp aria-hidden />
+        {pending
+          ? "Загружаем…"
+          : photoPath
+            ? "Заменить фото"
+            : "Загрузить фото"}
+      </Button>
+      {photoPath && (
+        <ConfirmAction
+          title="Удалить фото?"
+          description="На сайте вместо фото будут инициалы мастера."
+          action={() => deleteMasterPhoto(masterId)}
+          trigger={
+            <Button type="button" variant="ghost" disabled={pending}>
+              <Trash2 aria-hidden /> Удалить фото
+            </Button>
+          }
+        />
       )}
+      <p className="text-xs text-muted-foreground">
+        JPEG, PNG или WebP до 5 МБ. Обрежем до вертикального кадра 4:5.
+      </p>
     </div>
   );
 }

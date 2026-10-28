@@ -127,6 +127,35 @@ describe("discounts", () => {
     ).toEqual(["validUntil: Дата окончания раньше даты начала"]);
   });
 
+  it("rejects calendar days that do not exist", () => {
+    const promo = {
+      code: "X100",
+      kind: "PERCENT" as const,
+      value: 10,
+      validFrom: "",
+      maxUses: null,
+      isActive: true,
+    };
+    for (const validUntil of ["2026-02-29", "2026-02-31", "2026-04-31"]) {
+      expect(
+        issues(promoCodeSchema.safeParse({ ...promo, validUntil })),
+      ).toEqual(["validUntil: Укажите дату"]);
+    }
+    expect(
+      promoCodeSchema.safeParse({ ...promo, validUntil: "2028-02-29" }).success,
+    ).toBe(true);
+    expect(
+      timeOffSchema.safeParse({
+        allDay: true,
+        fromDate: "2026-02-31",
+        toDate: "2026-02-31",
+        fromTime: "",
+        toTime: "",
+        reason: "",
+      }).success,
+    ).toBe(false);
+  });
+
   it("rejects promo codes with spaces or Cyrillic", () => {
     for (const code of ["ПРОМО10", "WELCOME 10", "AB"]) {
       expect(
@@ -184,6 +213,41 @@ describe("other forms", () => {
         toTime: "14:00",
       }).success,
     ).toBe(true);
+  });
+
+  it("rejects an empty partial time off across midnight and off-grid times", () => {
+    expect(
+      timeOffSchema.safeParse({
+        allDay: false,
+        fromDate: "2026-11-20",
+        fromTime: "24:00",
+        toDate: "2026-11-21",
+        toTime: "00:00",
+        reason: "",
+      }).success,
+    ).toBe(false);
+    expect(
+      timeOffSchema.safeParse({
+        allDay: false,
+        fromDate: "2026-11-20",
+        fromTime: "23:55",
+        toDate: "2026-11-21",
+        toTime: "00:05",
+        reason: "",
+      }).success,
+    ).toBe(true);
+    expect(
+      issues(
+        timeOffSchema.safeParse({
+          allDay: false,
+          fromDate: "2026-11-20",
+          fromTime: "13:02",
+          toDate: "2026-11-20",
+          toTime: "14:00",
+          reason: "",
+        }),
+      ),
+    ).toEqual(["fromTime: Шаг — 5 минут"]);
   });
 
   it("requires a master card for the MASTER role", () => {

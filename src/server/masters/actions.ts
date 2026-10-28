@@ -168,7 +168,7 @@ export async function addTimeOff(
     );
     refresh();
     return result;
-  }, "Перерыв добавлен");
+  }, "Отсутствие добавлено");
 }
 
 export async function removeTimeOff(timeOffId: string): Promise<ActionResult> {
@@ -177,5 +177,5 @@ export async function removeTimeOff(timeOffId: string): Promise<ActionResult> {
     await masters.deleteTimeOff(db, staff, timeOffId);
     refresh();
     return undefined;
-  }, "Перерыв удалён");
+  }, "Отсутствие удалено");
 }

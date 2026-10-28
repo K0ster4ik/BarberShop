@@ -102,6 +102,8 @@ export const weekScheduleSchema = z
   });
 export type WeekScheduleInput = z.infer<typeof weekScheduleSchema>;
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
 export const timeOffSchema = z
   .object({
     allDay: z.boolean(),
@@ -124,25 +126,29 @@ export const timeOffSchema = z
     }
     const from = timeToMinutes(input.fromTime);
     const to = timeToMinutes(input.toTime);
-    if (from === null) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["fromTime"],
-        message: "Укажите время",
-      });
+    for (const [path, minutes] of [
+      ["fromTime", from],
+      ["toTime", to],
+    ] as const) {
+      if (minutes === null) {
+        ctx.addIssue({
+          code: "custom",
+          path: [path],
+          message: "Укажите время",
+        });
+      } else if (minutes % 5 !== 0) {
+        ctx.addIssue({
+          code: "custom",
+          path: [path],
+          message: "Шаг — 5 минут",
+        });
+      }
     }
-    if (to === null) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["toTime"],
-        message: "Укажите время",
-      });
-    }
-    if (
-      from !== null &&
-      to !== null &&
-      `${input.toDate} ${input.toTime}` <= `${input.fromDate} ${input.fromTime}`
-    ) {
+    if (from === null || to === null) return;
+    // Сравниваем минуты, а не строки: «20-го 24:00 — 21-го 00:00» — это ноль минут.
+    const days =
+      (Date.parse(input.toDate) - Date.parse(input.fromDate)) / DAY_MS;
+    if (days * 24 * 60 + to - from <= 0) {
       ctx.addIssue({
         code: "custom",
         path: ["toTime"],

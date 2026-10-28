@@ -15,6 +15,9 @@ import { type Db, DomainError } from "@/server/errors";
 
 export type UsersOptions = { demoMode: boolean };
 
+/** Ключ pg_advisory_xact_lock для изменений сотрудников. */
+const USERS_LOCK_KEY = 4_100_001;
+
 export const DEMO_USER_LOCKED_MESSAGE =
   "Демо-учётки нельзя изменять: ими пользуются все посетители демо.";
 
@@ -45,23 +48,24 @@ export async function listUsers(db: Db) {
   return { users, masters };
 }
 
-/** Карточка мастера свободна или уже принадлежит этому пользователю. */
-async function assertMasterAvailable(
-  db: Db,
-  masterId: string,
-  userId?: string,
-) {
-  const master = await db.master.findUnique({
-    where: { id: masterId },
-    select: { userId: true },
+/**
+ * Привязывает карточку мастера, только если она свободна или уже принадлежит этому
+ * пользователю. Условие проверяется в самом UPDATE: из двух параллельных запросов
+ * второй дождётся первого и не найдёт свободной карточки.
+ */
+async function linkMaster(db: Db, masterId: string, userId: string) {
+  const linked = await db.master.updateMany({
+    where: { id: masterId, OR: [{ userId: null }, { userId }] },
+    data: { userId },
   });
-  if (!master) throw new DomainError("Карточка мастера не найдена", "masterId");
-  if (master.userId && master.userId !== userId) {
-    throw new DomainError(
-      "К этой карточке уже привязан другой сотрудник",
-      "masterId",
-    );
-  }
+  if (linked.count === 1) return;
+  const exists = await db.master.count({ where: { id: masterId } });
+  throw new DomainError(
+    exists
+      ? "К этой карточке уже привязан другой сотрудник"
+      : "Карточка мастера не найдена",
+    "masterId",
+  );
 }
 
 export async function createUser(
@@ -73,7 +77,6 @@ export async function createUser(
     select: { id: true },
   });
   if (taken) throw new DomainError("Сотрудник с таким email уже есть", "email");
-  if (input.role === "MASTER") await assertMasterAvailable(db, input.masterId);
 
   const id = randomUUID();
   const password = await hashPassword(input.password);
@@ -95,12 +98,7 @@ export async function createUser(
         },
       },
     });
-    if (input.role === "MASTER") {
-      await tx.master.update({
-        where: { id: input.masterId },
-        data: { userId: id },
-      });
-    }
+    if (input.role === "MASTER") await linkMaster(tx, input.masterId, id);
   });
   return { id };
 }
@@ -125,32 +123,34 @@ export async function updateUser(
   input: UserUpdateInput,
 ) {
   assertNotDemoLocked(options, userId);
-  const user = await db.user.findUnique({
-    where: { id: userId },
-    select: { role: true, isActive: true },
-  });
-  if (!user) throw new DomainError("Сотрудник не найден");
-
-  if (userId === actor.id) {
-    if (input.role !== user.role) {
-      throw new DomainError("Нельзя изменить собственную роль", "role");
-    }
-    if (!input.isActive) {
-      throw new DomainError(
-        "Нельзя отключить собственную учётную запись",
-        "isActive",
-      );
-    }
-  }
-  const losesOwner =
-    user.role === "OWNER" &&
-    user.isActive &&
-    (input.role !== "OWNER" || !input.isActive);
-  if (losesOwner) await assertOtherActiveOwner(db, userId);
-  if (input.role === "MASTER")
-    await assertMasterAvailable(db, input.masterId, userId);
-
   await db.$transaction(async (tx) => {
+    // Изменения сотрудников идут по одному: иначе два владельца могли бы одновременно
+    // отключить друг друга, и каждый увидел бы второго ещё активным.
+    // Блокировка снимается в конце транзакции.
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(${USERS_LOCK_KEY})`;
+    const user = await tx.user.findUnique({
+      where: { id: userId },
+      select: { role: true, isActive: true },
+    });
+    if (!user) throw new DomainError("Сотрудник не найден");
+
+    if (userId === actor.id) {
+      if (input.role !== user.role) {
+        throw new DomainError("Нельзя изменить собственную роль", "role");
+      }
+      if (!input.isActive) {
+        throw new DomainError(
+          "Нельзя отключить собственную учётную запись",
+          "isActive",
+        );
+      }
+    }
+    const losesOwner =
+      user.role === "OWNER" &&
+      user.isActive &&
+      (input.role !== "OWNER" || !input.isActive);
+    if (losesOwner) await assertOtherActiveOwner(tx, userId);
+
     await tx.user.update({
       where: { id: userId },
       data: { name: input.name, role: input.role, isActive: input.isActive },
@@ -163,12 +163,7 @@ export async function updateUser(
       },
       data: { userId: null },
     });
-    if (input.role === "MASTER") {
-      await tx.master.update({
-        where: { id: input.masterId },
-        data: { userId },
-      });
-    }
+    if (input.role === "MASTER") await linkMaster(tx, input.masterId, userId);
     // Отключённый сотрудник выходит отовсюду сразу, а не по истечении сессии.
     if (!input.isActive) {
       await tx.session.deleteMany({ where: { userId } });

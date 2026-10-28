@@ -4,13 +4,13 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import {
+  FormSubmit,
   NumberField,
   SwitchField,
   TextareaField,
   TextField,
 } from "@/components/forms/fields";
 import { submitAction } from "@/components/forms/submit";
-import { Button } from "@/components/ui/button";
 import { FieldGroup } from "@/components/ui/field";
 import {
   type MasterProfileInput,
@@ -79,9 +79,9 @@ export function MasterProfileForm({
           label="Принимает записи"
           description="Отключённый мастер не виден на сайте, его история сохраняется."
         />
-        <Button type="submit" disabled={form.formState.isSubmitting}>
+        <FormSubmit pending={form.formState.isSubmitting}>
           {masterId ? "Сохранить" : "Добавить мастера"}
-        </Button>
+        </FormSubmit>
       </FieldGroup>
     </form>
   );

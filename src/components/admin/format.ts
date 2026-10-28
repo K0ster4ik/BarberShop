@@ -1,7 +1,8 @@
 import {
   addDays,
   formatSalonDate,
-  formatSalonDateTime,
+  formatSalonDateRange,
+  formatSalonDateTimeRange,
   salonTimeToInstant,
   toSalonDate,
   toSalonMinutes,
@@ -9,9 +10,14 @@ import {
 
 // Подписи для списков админки (серверные компоненты): периоды скидок, статусы, перерывы.
 
-/** Дата формы («2026-11-30») → «30 ноября 2026 г.»; полдень — чтобы не съехать на соседние сутки. */
+/** Полдень даты формы («2026-11-30»): так часовой пояс не сдвинет её на соседние сутки. */
+function noon(date: string): Date {
+  return salonTimeToInstant(date, 12 * 60);
+}
+
+/** Дата формы → «30 ноября 2026 г.». */
 export function formatDay(date: string): string {
-  return formatSalonDate(salonTimeToInstant(date, 12 * 60));
+  return formatSalonDate(noon(date));
 }
 
 /** Период скидки по датам формы («с … по …» включительно). */
@@ -19,7 +25,7 @@ export function formatDiscountPeriod(from: string, until: string): string {
   if (!from && !until) return "бессрочно";
   if (!until) return `с ${formatDay(from)}`;
   if (!from) return `по ${formatDay(until)}`;
-  return `${formatDay(from)} — ${formatDay(until)}`;
+  return formatSalonDateRange(noon(from), noon(until));
 }
 
 export type DiscountStatus = "active" | "scheduled" | "ended" | "off";
@@ -34,16 +40,11 @@ export function discountStatus(
   return "active";
 }
 
-/** Перерыв на целые дни — датами («5 — 9 ноября»), иначе — с временем. */
+/** Отсутствие на целые дни — датами («5–9 ноября 2026 г.»), иначе — с временем. */
 export function formatTimeOffPeriod(startsAt: Date, endsAt: Date): string {
   const wholeDays =
     toSalonMinutes(startsAt) === 0 && toSalonMinutes(endsAt) === 0;
-  if (!wholeDays) {
-    return `${formatSalonDateTime(startsAt)} — ${formatSalonDateTime(endsAt)}`;
-  }
-  const first = toSalonDate(startsAt);
+  if (!wholeDays) return formatSalonDateTimeRange(startsAt, endsAt);
   const last = addDays(toSalonDate(endsAt), -1);
-  return first === last
-    ? formatDay(first)
-    : `${formatDay(first)} — ${formatDay(last)}`;
+  return formatSalonDateRange(noon(toSalonDate(startsAt)), noon(last));
 }

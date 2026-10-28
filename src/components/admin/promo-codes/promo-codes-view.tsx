@@ -6,6 +6,7 @@ import { useForm, useWatch } from "react-hook-form";
 import { PageHeader } from "@/components/admin/page-header";
 import { ConfirmAction, FormDialog } from "@/components/forms/dialogs";
 import {
+  FormSubmit,
   NumberField,
   SelectField,
   SwitchField,
@@ -76,12 +77,16 @@ export function PromoCodesView({ codes }: { codes: PromoCodeItem[] }) {
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-mono font-medium">{code.code}</span>
+                  <span className="font-medium">{code.discount}</span>
                   <Badge variant={STATUS[code.status].variant}>
                     {STATUS[code.status].label}
                   </Badge>
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  {code.discount} · {code.period} · использован: {code.uses}
+                  Использовано: {code.uses}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Срок: {code.period}
                 </p>
               </div>
               <FormDialog
@@ -198,9 +203,7 @@ function PromoCodeForm({
           />
         </div>
         <SwitchField control={form.control} name="isActive" label="Включён" />
-        <Button type="submit" disabled={form.formState.isSubmitting}>
-          Сохранить
-        </Button>
+        <FormSubmit pending={form.formState.isSubmitting}>Сохранить</FormSubmit>
       </FieldGroup>
     </form>
   );

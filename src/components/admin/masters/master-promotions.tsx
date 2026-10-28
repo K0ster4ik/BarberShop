@@ -5,6 +5,7 @@ import { Pencil, Plus, Trash2 } from "lucide-react";
 import { useForm, useWatch } from "react-hook-form";
 import { ConfirmAction, FormDialog } from "@/components/forms/dialogs";
 import {
+  FormSubmit,
   NumberField,
   SelectField,
   SwitchField,
@@ -16,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { FieldGroup } from "@/components/ui/field";
 import { type PromotionInput, promotionSchema } from "@/lib/validation/masters";
 import { removePromotion, savePromotion } from "@/server/masters/actions";
+import { MetaLine } from "@/components/admin/meta-line";
 
 export type PromotionStatus = "active" | "scheduled" | "ended" | "off";
 
@@ -88,8 +90,9 @@ export function MasterPromotions({
                     {STATUS[promotion.status].label}
                   </Badge>
                 </div>
+                <MetaLine parts={[promotion.discount, promotion.scope]} />
                 <p className="text-sm text-muted-foreground">
-                  {promotion.discount} · {promotion.scope} · {promotion.period}
+                  Срок: {promotion.period}
                 </p>
               </div>
               <FormDialog
@@ -219,9 +222,7 @@ function PromotionForm({
           />
         </div>
         <SwitchField control={form.control} name="isActive" label="Включена" />
-        <Button type="submit" disabled={form.formState.isSubmitting}>
-          Сохранить
-        </Button>
+        <FormSubmit pending={form.formState.isSubmitting}>Сохранить</FormSubmit>
       </FieldGroup>
     </form>
   );

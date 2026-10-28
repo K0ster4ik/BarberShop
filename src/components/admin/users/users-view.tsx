@@ -5,7 +5,12 @@ import { KeyRound, Lock, Pencil, Plus } from "lucide-react";
 import { useForm, useWatch } from "react-hook-form";
 import { PageHeader } from "@/components/admin/page-header";
 import { FormDialog } from "@/components/forms/dialogs";
-import { SelectField, SwitchField, TextField } from "@/components/forms/fields";
+import {
+  FormSubmit,
+  SelectField,
+  SwitchField,
+  TextField,
+} from "@/components/forms/fields";
 import { submitAction } from "@/components/forms/submit";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -96,7 +101,7 @@ export function UsersView({
                 {!user.isActive && <Badge variant="outline">Отключён</Badge>}
                 {user.demoLocked && (
                   <Badge variant="outline">
-                    <Lock aria-hidden /> Демо
+                    <Lock aria-hidden /> Демо-учётка
                   </Badge>
                 )}
               </div>
@@ -105,39 +110,46 @@ export function UsersView({
                 {user.master && ` · карточка: ${user.master.name}`}
               </p>
             </div>
-            <FormDialog
-              title={user.name}
-              trigger={
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  disabled={user.demoLocked}
-                  aria-label={`Изменить: ${user.name}`}
+            {/* Демо-учётки защищены: вместо неактивных кнопок — только отметка с замком. */}
+            {!user.demoLocked && (
+              <>
+                <FormDialog
+                  title={user.name}
+                  trigger={
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label={`Изменить: ${user.name}`}
+                    >
+                      <Pencil aria-hidden />
+                    </Button>
+                  }
                 >
-                  <Pencil aria-hidden />
-                </Button>
-              }
-            >
-              {(close) => (
-                <EditUserForm user={user} masters={masters} onDone={close} />
-              )}
-            </FormDialog>
-            <FormDialog
-              title="Новый пароль"
-              description={`Для ${user.name}. Сотрудник выйдет со всех устройств и войдёт с новым паролем.`}
-              trigger={
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  disabled={user.demoLocked}
-                  aria-label={`Сменить пароль: ${user.name}`}
+                  {(close) => (
+                    <EditUserForm
+                      user={user}
+                      masters={masters}
+                      onDone={close}
+                    />
+                  )}
+                </FormDialog>
+                <FormDialog
+                  title="Новый пароль"
+                  description={`Для ${user.name}. Сотрудник выйдет со всех устройств и войдёт с новым паролем.`}
+                  trigger={
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label={`Сменить пароль: ${user.name}`}
+                    >
+                      <KeyRound aria-hidden />
+                    </Button>
+                  }
                 >
-                  <KeyRound aria-hidden />
-                </Button>
-              }
-            >
-              {(close) => <PasswordForm userId={user.id} onDone={close} />}
-            </FormDialog>
+                  {(close) => <PasswordForm userId={user.id} onDone={close} />}
+                </FormDialog>
+              </>
+            )}
           </li>
         ))}
       </ul>
@@ -212,9 +224,7 @@ function CreateUserForm({
           autoComplete="new-password"
           description="Не меньше 8 символов. Передайте его сотруднику лично."
         />
-        <Button type="submit" disabled={form.formState.isSubmitting}>
-          Добавить
-        </Button>
+        <FormSubmit pending={form.formState.isSubmitting}>Добавить</FormSubmit>
       </FieldGroup>
     </form>
   );
@@ -273,9 +283,7 @@ function EditUserForm({
           label="Доступ в CRM"
           description="Отключённый сотрудник сразу выходит со всех устройств."
         />
-        <Button type="submit" disabled={form.formState.isSubmitting}>
-          Сохранить
-        </Button>
+        <FormSubmit pending={form.formState.isSubmitting}>Сохранить</FormSubmit>
       </FieldGroup>
     </form>
   );
@@ -311,9 +319,9 @@ function PasswordForm({
           type="password"
           autoComplete="new-password"
         />
-        <Button type="submit" disabled={form.formState.isSubmitting}>
+        <FormSubmit pending={form.formState.isSubmitting}>
           Сменить пароль
-        </Button>
+        </FormSubmit>
       </FieldGroup>
     </form>
   );

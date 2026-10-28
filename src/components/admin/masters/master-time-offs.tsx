@@ -5,7 +5,7 @@ import { Trash2 } from "lucide-react";
 import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import { ConfirmAction } from "@/components/forms/dialogs";
-import { SwitchField, TextField } from "@/components/forms/fields";
+import { FormSubmit, SwitchField, TextField } from "@/components/forms/fields";
 import { submitAction } from "@/components/forms/submit";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,7 +16,7 @@ import { addTimeOff, removeTimeOff } from "@/server/masters/actions";
 
 export type TimeOffItem = {
   id: string;
-  period: string; // «5 нояб., 00:00 — 10 нояб., 00:00»
+  period: string; // «5–9 ноября 2026 г.» или «30 октября 2026 г., 12:00–14:00»
   reason: string | null;
   past: boolean;
 };
@@ -34,12 +34,12 @@ export function MasterTimeOffs({
     <div className="grid gap-6 lg:grid-cols-[1fr_22rem]">
       <div className="flex flex-col gap-3">
         <p className="text-sm text-muted-foreground">
-          Отпуска, больничные и разовые перерывы. В это время к мастеру нельзя
-          записаться.
+          Отпуск, больничный или отлучка на несколько часов. В это время к
+          мастеру нельзя записаться.
         </p>
         {timeOffs.length === 0 ? (
           <p className="rounded-lg border border-dashed p-6 text-muted-foreground">
-            Перерывов не запланировано.
+            Отсутствий не запланировано.
           </p>
         ) : (
           <ul className="divide-y rounded-lg border">
@@ -49,21 +49,23 @@ export function MasterTimeOffs({
                 className={`flex items-center gap-3 p-3 ${timeOff.past ? "text-muted-foreground" : ""}`}
               >
                 <div className="min-w-0 flex-1">
-                  <p className="font-medium">{timeOff.reason ?? "Перерыв"}</p>
+                  <p className="font-medium">
+                    {timeOff.reason ?? "Отсутствие"}
+                  </p>
                   <p className="text-sm text-muted-foreground">
                     {timeOff.period}
                     {timeOff.past && " · прошёл"}
                   </p>
                 </div>
                 <ConfirmAction
-                  title="Удалить перерыв?"
+                  title="Удалить отсутствие?"
                   description="Время снова станет доступным для записи."
                   action={() => removeTimeOff(timeOff.id)}
                   trigger={
                     <Button
                       variant="ghost"
                       size="icon"
-                      aria-label={`Удалить: ${timeOff.reason ?? "перерыв"}, ${timeOff.period}`}
+                      aria-label={`Удалить: ${timeOff.reason ?? "отсутствие"}, ${timeOff.period}`}
                     >
                       <Trash2 aria-hidden />
                     </Button>
@@ -76,7 +78,7 @@ export function MasterTimeOffs({
       </div>
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Добавить перерыв</CardTitle>
+          <CardTitle className="text-base">Новое отсутствие</CardTitle>
         </CardHeader>
         <CardContent>
           <TimeOffForm masterId={masterId} today={today} />
@@ -160,11 +162,9 @@ function TimeOffForm({ masterId, today }: { masterId: string; today: string }) {
           control={form.control}
           name="reason"
           label="Причина"
-          placeholder="Отпуск, врач, обучение"
+          placeholder="Отпуск, больничный, врач"
         />
-        <Button type="submit" disabled={form.formState.isSubmitting}>
-          Добавить
-        </Button>
+        <FormSubmit pending={form.formState.isSubmitting}>Добавить</FormSubmit>
       </FieldGroup>
     </form>
   );

@@ -26,15 +26,18 @@ export function MasterTabs({
       }
       className="flex flex-col gap-4"
     >
-      <div className="-mx-4 overflow-x-auto px-4 md:mx-0 md:px-0">
-        <TabsList className="w-max">
-          {items.map((item) => (
-            <TabsTrigger key={item.value} value={item.value}>
-              {item.label}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-      </div>
+      {/* На телефоне — сетка в два ряда: все вкладки видны, ничего не прячется за краем. */}
+      <TabsList className="grid w-full grid-cols-3 group-data-horizontal/tabs:h-auto sm:inline-flex sm:w-fit">
+        {items.map((item) => (
+          <TabsTrigger
+            key={item.value}
+            value={item.value}
+            className="min-h-10 sm:min-h-0"
+          >
+            {item.label}
+          </TabsTrigger>
+        ))}
+      </TabsList>
       {items.map((item) => (
         <TabsContent key={item.value} value={item.value}>
           {item.content}

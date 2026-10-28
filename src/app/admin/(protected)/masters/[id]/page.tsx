@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { forbidden, notFound } from "next/navigation";
 import { Suspense } from "react";
+import { MasterAvatar } from "@/components/admin/masters/master-avatar";
 import { MasterPhoto } from "@/components/admin/masters/master-photo";
 import { MasterProfileForm } from "@/components/admin/masters/master-profile-form";
 import {
@@ -105,24 +106,33 @@ async function MasterDetail({
     past: timeOff.endsAt <= now,
   }));
 
+  // Фото меняют редко, поэтому оно живёт во вкладке «Профиль», а не в шапке:
+  // на телефоне рабочие вкладки (цены, график) начинаются с первого экрана.
   const profile = canManage ? (
-    <div className="max-w-xl">
-      <MasterProfileForm
+    <div className="flex max-w-2xl flex-col gap-6 sm:flex-row sm:items-start">
+      <MasterPhoto
         masterId={master.id}
-        defaults={{
-          name: master.name,
-          title: master.title ?? "",
-          bio: master.bio ?? "",
-          isActive: master.isActive,
-          sortOrder: master.sortOrder,
-        }}
+        name={master.name}
+        photoPath={master.photoPath}
       />
-      <p className="mt-6 text-sm text-muted-foreground">
-        {master.user
-          ? `Вход в CRM: ${master.user.email}${master.user.isActive ? "" : " (отключён)"}.`
-          : "У мастера нет входа в CRM."}{" "}
-        Учётные записи настраивает владелец в разделе «Пользователи».
-      </p>
+      <div className="min-w-0 flex-1">
+        <MasterProfileForm
+          masterId={master.id}
+          defaults={{
+            name: master.name,
+            title: master.title ?? "",
+            bio: master.bio ?? "",
+            isActive: master.isActive,
+            sortOrder: master.sortOrder,
+          }}
+        />
+        <p className="mt-6 text-sm text-muted-foreground">
+          {master.user
+            ? `Вход в CRM: ${master.user.email}${master.user.isActive ? "" : " (отключён)"}.`
+            : "У мастера нет входа в CRM."}{" "}
+          Учётные записи настраивает владелец в разделе «Пользователи».
+        </p>
+      </div>
     </div>
   ) : (
     <dl className="grid max-w-xl gap-4">
@@ -150,14 +160,14 @@ async function MasterDetail({
           <ArrowLeft className="size-4" aria-hidden /> Все мастера
         </Link>
       )}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
-        <MasterPhoto
-          masterId={master.id}
+      <div className="flex items-center gap-4">
+        <MasterAvatar
           name={master.name}
           photoPath={master.photoPath}
-          editable={canManage}
+          sizes="64px"
+          className="w-16 shrink-0 [&>span]:text-base"
         />
-        <div className="flex flex-col gap-2">
+        <div className="flex min-w-0 flex-col gap-1">
           <h1 className="text-2xl font-semibold tracking-tight">
             {master.name}
           </h1>
@@ -175,7 +185,7 @@ async function MasterDetail({
           { value: "profile", label: "Профиль", content: profile },
           {
             value: "services",
-            label: "Услуги и цены",
+            label: "Услуги",
             content: (
               <MasterServices
                 masterId={master.id}
@@ -213,7 +223,7 @@ async function MasterDetail({
           },
           {
             value: "time-off",
-            label: "Отпуска",
+            label: "Отсутствия",
             content: (
               <MasterTimeOffs
                 masterId={master.id}

@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Plus, X } from "lucide-react";
+import { Copy, Plus, X } from "lucide-react";
 import {
   type Control,
   Controller,
@@ -11,8 +11,17 @@ import {
 import { toast } from "sonner";
 import { submitAction } from "@/components/forms/submit";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { plural } from "@/lib/plural";
+import { cn } from "@/lib/utils";
 import {
   MAX_INTERVALS_PER_DAY,
   type WeekScheduleInput,
@@ -29,6 +38,18 @@ const DAYS = [
   "Суббота",
   "Воскресенье",
 ];
+// В меню «Скопировать на…»: «на вторник», «на среду».
+const DAYS_ACCUSATIVE = [
+  "понедельник",
+  "вторник",
+  "среду",
+  "четверг",
+  "пятницу",
+  "субботу",
+  "воскресенье",
+];
+const WEEKDAYS = [0, 1, 2, 3, 4];
+const WHOLE_WEEK = [0, 1, 2, 3, 4, 5, 6];
 
 /** Недельный график: несколько интервалов в день — смена с перерывом. */
 export function MasterSchedule({
@@ -42,6 +63,22 @@ export function MasterSchedule({
     resolver: zodResolver(weekScheduleSchema),
     defaultValues: defaults,
   });
+
+  // Типовая неделя одинакова по будням: день заполняют один раз и копируют.
+  function copyDay(from: number, targets: number[]) {
+    const intervals = form.getValues(`days.${from}`);
+    const others = targets.filter((day) => day !== from);
+    for (const day of others) {
+      form.setValue(
+        `days.${day}`,
+        intervals.map((interval) => ({ ...interval })),
+        { shouldDirty: true },
+      );
+    }
+    toast.info(
+      `Скопировано на ${others.length} ${plural(others.length, ["день", "дня", "дней"])}. Не забудьте сохранить график.`,
+    );
+  }
 
   return (
     <form
@@ -66,10 +103,23 @@ export function MasterSchedule({
       </p>
       <ul className="divide-y rounded-lg border">
         {DAYS.map((day, index) => (
-          <DayRow key={day} control={form.control} day={index} label={day} />
+          <DayRow
+            key={day}
+            control={form.control}
+            day={index}
+            label={day}
+            onCopy={(targets) => copyDay(index, targets)}
+          />
         ))}
       </ul>
-      <div className="flex items-center gap-3">
+      {/* С несохранёнными изменениями панель прилипает к низу экрана: после правки понедельника не нужно листать неделю. */}
+      <div
+        className={cn(
+          "flex flex-wrap items-center gap-x-3 gap-y-1",
+          form.formState.isDirty &&
+            "sticky bottom-0 z-10 border-t bg-background py-3",
+        )}
+      >
         <Button
           type="submit"
           disabled={form.formState.isSubmitting || !form.formState.isDirty}
@@ -90,10 +140,12 @@ function DayRow({
   control,
   day,
   label,
+  onCopy,
 }: {
   control: Control<WeekScheduleInput>;
   day: number;
   label: string;
+  onCopy: (targets: number[]) => void;
 }) {
   const { fields, append, remove } = useFieldArray({
     control,
@@ -109,7 +161,7 @@ function DayRow({
         )}
         {fields.map((field, index) => (
           <div key={field.id} className="flex flex-col gap-1">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 sm:gap-3">
               <TimeInput
                 control={control}
                 name={`days.${day}.${index}.start`}
@@ -135,22 +187,46 @@ function DayRow({
           </div>
         ))}
       </div>
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        className="self-start"
-        disabled={fields.length >= MAX_INTERVALS_PER_DAY}
-        onClick={() =>
-          append(
-            fields.length === 0
-              ? { start: "10:00", end: "20:00" }
-              : { start: "", end: "" },
-          )
-        }
-      >
-        <Plus aria-hidden /> Интервал
-      </Button>
+      <div className="flex flex-wrap gap-2 sm:flex-col">
+        <Button
+          type="button"
+          variant="outline"
+          disabled={fields.length >= MAX_INTERVALS_PER_DAY}
+          onClick={() =>
+            append(
+              fields.length === 0
+                ? { start: "10:00", end: "20:00" }
+                : { start: "", end: "" },
+            )
+          }
+        >
+          <Plus aria-hidden /> Интервал
+        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button type="button" variant="ghost">
+              <Copy aria-hidden /> Скопировать
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start">
+            <DropdownMenuLabel>{label} — на…</DropdownMenuLabel>
+            <DropdownMenuItem onSelect={() => onCopy(WEEKDAYS)}>
+              Все будни
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => onCopy(WHOLE_WEEK)}>
+              Всю неделю
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            {DAYS_ACCUSATIVE.map((name, target) =>
+              target === day ? null : (
+                <DropdownMenuItem key={name} onSelect={() => onCopy([target])}>
+                  {name.charAt(0).toUpperCase() + name.slice(1)}
+                </DropdownMenuItem>
+              ),
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
     </li>
   );
 }
@@ -173,7 +249,7 @@ function TimeInput({
           {...field}
           type="time"
           step={300}
-          className="w-32"
+          className="h-10 min-w-0 flex-1 sm:h-8 sm:w-32 sm:flex-none"
           aria-label={label}
           aria-invalid={fieldState.invalid}
         />

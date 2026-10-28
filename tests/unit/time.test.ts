@@ -33,6 +33,8 @@ describe("addDays", () => {
   it("rejects malformed dates", () => {
     expect(() => addDays("2026-13-01", 1)).toThrow(RangeError);
     expect(() => addDays("03.11.2026", 1)).toThrow(RangeError);
+    // Date сам переносит 31 февраля на 3 марта — такая дата должна быть ошибкой
+    expect(() => addDays("2026-02-31", 1)).toThrow(RangeError);
   });
 });
 

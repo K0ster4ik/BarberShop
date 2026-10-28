@@ -1,12 +1,13 @@
 "use client";
 
-import { type ComponentProps, useId } from "react";
+import { type ComponentProps, type ReactNode, useId } from "react";
 import {
   type Control,
   Controller,
   type FieldValues,
   type Path,
 } from "react-hook-form";
+import { Button } from "@/components/ui/button";
 import {
   Field,
   FieldContent,
@@ -243,5 +244,26 @@ export function SwitchField<T extends FieldValues>({
         </Field>
       )}
     />
+  );
+}
+
+// Внутри диалога кнопка прилипает к его низу: длинная форма на телефоне прокручивается,
+// а «Сохранить» остаётся на виду. Вне диалога это обычная кнопка.
+const IN_DIALOG =
+  "in-data-[slot=dialog-content]:sticky in-data-[slot=dialog-content]:-bottom-4 in-data-[slot=dialog-content]:z-10 in-data-[slot=dialog-content]:-mx-4 in-data-[slot=dialog-content]:-mb-4 in-data-[slot=dialog-content]:border-t in-data-[slot=dialog-content]:bg-popover in-data-[slot=dialog-content]:p-4";
+
+export function FormSubmit({
+  pending,
+  children,
+}: {
+  pending: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <div className={IN_DIALOG}>
+      <Button type="submit" disabled={pending} className="w-full sm:w-auto">
+        {children}
+      </Button>
+    </div>
   );
 }

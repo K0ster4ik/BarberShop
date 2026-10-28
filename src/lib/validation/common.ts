@@ -39,14 +39,16 @@ export const requiredText = (min: number, max: number) =>
     .min(min, min === 1 ? "Заполните поле" : `Не меньше ${min} символов`)
     .max(max, `Не больше ${max} символов`);
 
+// z.iso.date() проверяет и календарь: 2026-02-31 не пройдёт (Date молча сделал бы 3 марта).
+const isoDate = z.iso.date();
+const isCalendarDate = (value: string) => isoDate.safeParse(value).success;
+
 /** "2026-11-03" или пустая строка (не задано). */
 export const optionalDateField = z
   .string()
-  .regex(/^(\d{4}-\d{2}-\d{2})?$/, "Укажите дату");
+  .refine((value) => value === "" || isCalendarDate(value), "Укажите дату");
 
-export const dateField = z
-  .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/, "Укажите дату");
+export const dateField = z.string().refine(isCalendarDate, "Укажите дату");
 
 /** "10:15"; «24:00» допустимо как конец суток. */
 export const timeField = z

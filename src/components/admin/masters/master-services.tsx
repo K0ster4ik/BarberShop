@@ -5,7 +5,11 @@ import { Pencil, Plus, Trash2 } from "lucide-react";
 import { useEffect } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { ConfirmAction, FormDialog } from "@/components/forms/dialogs";
-import { NumberField, SelectField } from "@/components/forms/fields";
+import {
+  FormSubmit,
+  NumberField,
+  SelectField,
+} from "@/components/forms/fields";
 import { submitAction } from "@/components/forms/submit";
 import { Button } from "@/components/ui/button";
 import { FieldGroup } from "@/components/ui/field";
@@ -18,6 +22,7 @@ import {
   deleteMasterService,
   saveMasterService,
 } from "@/server/masters/actions";
+import { MetaLine } from "@/components/admin/meta-line";
 
 export type OfferedService = {
   serviceId: string;
@@ -93,11 +98,14 @@ export function MasterServices({
                     </span>
                   )}
                 </p>
-                <p className="text-sm text-muted-foreground">
-                  {service.category} · {service.durationMin} мин
-                  {service.price !== service.defaultPrice &&
-                    ` · в прайсе ${formatMoney(service.defaultPrice)}`}
-                </p>
+                <MetaLine
+                  parts={[
+                    service.category,
+                    `${service.durationMin} мин`,
+                    service.price !== service.defaultPrice &&
+                      `в прайсе ${formatMoney(service.defaultPrice)}`,
+                  ]}
+                />
               </div>
               <span className="shrink-0 tabular-nums">
                 {formatMoney(service.price)}
@@ -220,9 +228,7 @@ function MasterServiceForm({
             step={5}
           />
         </div>
-        <Button type="submit" disabled={form.formState.isSubmitting}>
-          Сохранить
-        </Button>
+        <FormSubmit pending={form.formState.isSubmitting}>Сохранить</FormSubmit>
       </FieldGroup>
     </form>
   );
