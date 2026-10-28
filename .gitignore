@@ -43,3 +43,6 @@ next-env.d.ts
 
 # prisma client (генерируется `prisma generate`)
 /src/generated/
+
+# журналы запусков Codex (scripts/codex/run.mjs)
+/.codex-runs/

@@ -22,6 +22,9 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
     "src/generated/**",
+    // Навыки Claude Code (в т. ч. сторонние примеры) и журналы запусков Codex.
+    ".claude/**",
+    ".codex-runs/**",
   ]),
 ]);
 

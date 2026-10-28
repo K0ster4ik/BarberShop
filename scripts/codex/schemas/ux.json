@@ -1,0 +1,66 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "UX/UI review findings",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["summary", "findings"],
+  "properties": {
+    "summary": {
+      "type": "string",
+      "description": "2-4 sentences in Russian: overall impression of the screens."
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "severity",
+          "screen",
+          "viewport",
+          "area",
+          "issue",
+          "why",
+          "suggestion"
+        ],
+        "properties": {
+          "severity": { "type": "string", "enum": ["high", "medium", "low"] },
+          "screen": {
+            "type": "string",
+            "description": "Screenshot file name or route."
+          },
+          "viewport": {
+            "type": "string",
+            "enum": ["mobile", "desktop", "both"]
+          },
+          "area": {
+            "type": "string",
+            "enum": [
+              "layout",
+              "typography",
+              "color-contrast",
+              "hierarchy",
+              "copy",
+              "interaction",
+              "accessibility",
+              "consistency",
+              "empty-or-error-state"
+            ]
+          },
+          "issue": {
+            "type": "string",
+            "description": "What the user sees, Russian."
+          },
+          "why": {
+            "type": "string",
+            "description": "Why it hurts the user, Russian."
+          },
+          "suggestion": {
+            "type": "string",
+            "description": "Concrete change, Russian."
+          }
+        }
+      }
+    }
+  }
+}

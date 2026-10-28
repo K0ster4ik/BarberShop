@@ -1,0 +1,63 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Code review findings",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["summary", "findings"],
+  "properties": {
+    "summary": {
+      "type": "string",
+      "description": "2-4 sentences in Russian: overall impression of the change."
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "severity",
+          "category",
+          "file",
+          "line",
+          "title",
+          "details",
+          "failure_scenario",
+          "suggestion"
+        ],
+        "properties": {
+          "severity": {
+            "type": "string",
+            "enum": ["critical", "high", "medium", "low"]
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "bug",
+              "security",
+              "data-integrity",
+              "performance",
+              "accessibility",
+              "maintainability",
+              "test-gap"
+            ]
+          },
+          "file": { "type": "string", "description": "Repo-relative path." },
+          "line": { "type": ["integer", "null"] },
+          "title": { "type": "string", "description": "One line, Russian." },
+          "details": {
+            "type": "string",
+            "description": "What is wrong and why, Russian."
+          },
+          "failure_scenario": {
+            "type": "string",
+            "description": "Concrete input/state that leads to the wrong result."
+          },
+          "suggestion": {
+            "type": "string",
+            "description": "How to fix, Russian."
+          }
+        }
+      }
+    }
+  }
+}
