@@ -55,9 +55,10 @@ export function AdminNav({
             aria-current={active ? "page" : undefined}
             className={cn(
               "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
+              // Текущий раздел должен читаться с первого взгляда, а не по едва заметной подложке.
               active
-                ? "bg-sidebar-accent font-medium text-sidebar-accent-foreground"
-                : "text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground",
+                ? "bg-sidebar-primary font-medium text-sidebar-primary-foreground"
+                : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground",
             )}
           >
             <Icon className="size-4 shrink-0" aria-hidden />

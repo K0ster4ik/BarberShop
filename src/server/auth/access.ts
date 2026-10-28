@@ -90,18 +90,35 @@ export function masterScope(staff: StaffUser): Prisma.MasterWhereInput {
   return staff.role === "MASTER" ? { id: ownMasterId(staff) } : {};
 }
 
+// Условный origin только для разбора относительных путей; наружу не попадает.
+const PARSE_ORIGIN = "http://admin.invalid";
+
 /**
  * Куда вернуть после входа. Принимаем только пути внутри админки, иначе
  * параметр `next` превратился бы в открытый редирект.
+ *
+ * Путь проверяется после нормализации так, как его разберёт браузер: иначе
+ * `/admin/../admin/login` прошёл бы проверку и превратился в цикл редиректов,
+ * а `/admin/../что-угодно` увёл бы за пределы админки.
  */
 export function safeAdminPath(next: string | null | undefined): string {
-  if (
-    !next ||
-    !(next === ADMIN_HOME_PATH || /^\/admin[/?]/.test(next)) ||
-    next.startsWith(LOGIN_PATH) ||
-    next.includes("\\")
-  ) {
+  if (!next || next.includes("\\")) return ADMIN_HOME_PATH;
+
+  let url: URL;
+  try {
+    url = new URL(next, PARSE_ORIGIN);
+  } catch {
     return ADMIN_HOME_PATH;
   }
-  return next;
+  // Абсолютные адреса и `//host/...` меняют origin.
+  if (url.origin !== PARSE_ORIGIN) return ADMIN_HOME_PATH;
+
+  const { pathname } = url;
+  const insideAdmin =
+    pathname === ADMIN_HOME_PATH || pathname.startsWith(`${ADMIN_HOME_PATH}/`);
+  const isLogin =
+    pathname === LOGIN_PATH || pathname.startsWith(`${LOGIN_PATH}/`);
+  if (!insideAdmin || isLogin) return ADMIN_HOME_PATH;
+
+  return pathname + url.search;
 }

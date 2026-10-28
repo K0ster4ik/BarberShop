@@ -21,8 +21,14 @@ export const DEMO_LOCKED_MESSAGE =
  * HTTP-эндпоинты Better Auth, которые приложению не нужны: регистрации нет
  * (сотрудников создаёт владелец), почты и OAuth тоже. Профиль меняется через
  * Server Actions приложения, а не через /update-user.
+ *
+ * Вход тоже идёт только через Server Action с собственным лимитом попыток
+ * (src/app/admin/login/actions.ts). HTTP-вход закрыт, иначе через него можно было
+ * бы подбирать пароль в обход этого лимита. disabledPaths действует только на
+ * HTTP-роутер, серверный auth.api.signInEmail продолжает работать.
  */
 const DISABLED_PATHS = [
+  "/sign-in/email",
   "/sign-up/email",
   "/update-user",
   "/change-email",

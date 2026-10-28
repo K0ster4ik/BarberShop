@@ -1,3 +1,4 @@
+import { isAPIError } from "better-auth/api";
 import { hashPassword } from "better-auth/crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { PrismaClient } from "@/generated/prisma/client";
@@ -11,7 +12,8 @@ import { resetDemoData } from "@/server/demo/reset";
 import { createTestDb } from "./test-db";
 
 // Конфигурация Better Auth через её настоящий HTTP-обработчик (/api/auth/*):
-// именно так до эндпоинтов доберётся посетитель демо.
+// именно так до эндпоинтов доберётся посетитель демо. Вход — исключение: по HTTP он
+// закрыт, поэтому тесты входят так же, как Server Action, через auth.api.signInEmail.
 
 const BASE_URL = "http://localhost:3000";
 const SECRET = "integration-test-secret-0123456789abcdef";
@@ -47,13 +49,27 @@ function call(
   );
 }
 
+/** Вход как в Server Action; возвращает cookie сессии для HTTP-запросов. */
 async function signIn(email: string, password: string): Promise<string> {
-  const response = await call("/sign-in/email", { body: { email, password } });
-  expect(response.status).toBe(200);
-  return response.headers
+  const { headers } = await auth.api.signInEmail({
+    body: { email, password },
+    returnHeaders: true,
+  });
+  return headers
     .getSetCookie()
     .map((cookie) => cookie.split(";")[0])
     .join("; ");
+}
+
+async function signInError(email: string, password: string) {
+  const error: unknown = await auth.api
+    .signInEmail({ body: { email, password } })
+    .then(
+      () => null,
+      (reason: unknown) => reason,
+    );
+  if (!isAPIError(error)) throw new Error("Expected sign-in to be rejected");
+  return error;
 }
 
 beforeAll(async () => {
@@ -97,10 +113,17 @@ describe("sign in", () => {
   });
 
   it("rejects a wrong password", async () => {
+    const error = await signInError("owner@demo.ru", "wrong-password");
+    expect(error.statusCode).toBe(401);
+  });
+
+  it("has HTTP sign-in turned off, so its rate limit cannot be bypassed", async () => {
+    // Найдено ревью Codex: прямой POST сюда обходил лимит входа Server Action.
     const response = await call("/sign-in/email", {
-      body: { email: "owner@demo.ru", password: "wrong-password" },
+      body: { email: "owner@demo.ru", password: passwords.owner },
     });
-    expect(response.status).toBe(401);
+    expect(response.status).toBe(404);
+    expect(response.headers.getSetCookie()).toHaveLength(0);
   });
 
   it("has self sign-up turned off", async () => {
@@ -123,13 +146,9 @@ describe("sign in", () => {
       data: { isActive: false },
     });
     try {
-      const response = await call("/sign-in/email", {
-        body: { email: REGULAR.email, password: REGULAR.password },
-      });
-      expect(response.status).toBe(403);
-      expect(await response.json()).toMatchObject({
-        message: ACCOUNT_DISABLED_MESSAGE,
-      });
+      const error = await signInError(REGULAR.email, REGULAR.password);
+      expect(error.statusCode).toBe(403);
+      expect(error.message).toBe(ACCOUNT_DISABLED_MESSAGE);
     } finally {
       await db.user.update({
         where: { id: REGULAR.id },

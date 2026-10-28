@@ -115,6 +115,13 @@ describe("safeAdminPath", () => {
       "/admin\\evil",
       "/admin/login",
       "/",
+      // Найдено ревью Codex: браузер нормализует «..», и такой путь вёл бы
+      // на страницу входа (цикл редиректов) или за пределы админки.
+      "/admin/../admin/login",
+      "/admin/../admin/login?next=%2Fadmin",
+      "/admin/%2e%2e/admin/login",
+      "/admin/../api/auth/get-session",
+      "/admin/./../evil",
     ]) {
       expect(safeAdminPath(next)).toBe("/admin");
     }
