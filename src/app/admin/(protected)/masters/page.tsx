@@ -13,6 +13,17 @@ import { SECTION_ROLES } from "@/server/auth/access";
 import { db } from "@/server/db";
 import { listMasters } from "@/server/masters/service";
 
+// Ширина карточки в сетке: браузер выбирает файл по этой подсказке. С занижением
+// (раньше было «220px» для всех широких экранов) на мониторе 1920 он брал картинку
+// 256px и растягивал её до ~400px — фото «мылилось». Числа — из разметки:
+// боковое меню 240px с md, отступы main 16/24px, зазор сетки 16px, 2/3/4 колонки.
+const CARD_SIZES = [
+  "(min-width: 1024px) calc((100vw - 336px) / 4)",
+  "(min-width: 768px) calc((100vw - 320px) / 3)",
+  "(min-width: 640px) calc((100vw - 64px) / 3)",
+  "calc((100vw - 48px) / 2)",
+].join(", ");
+
 export const metadata: Metadata = { title: "Мастера" };
 
 export default function MastersPage() {
@@ -35,7 +46,7 @@ async function Masters() {
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Мастера"
-        description="Профили, фото, цены на услуги, акции, график и отпуска."
+        description="Профили, фото, цены на услуги, акции, график и отсутствия."
         actions={<NewMasterButton />}
       />
       <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
@@ -48,7 +59,7 @@ async function Masters() {
               <MasterAvatar
                 name={master.name}
                 photoPath={master.photoPath}
-                sizes="(min-width: 1024px) 220px, (min-width: 640px) 30vw, 45vw"
+                sizes={CARD_SIZES}
                 className={master.isActive ? undefined : "opacity-60 grayscale"}
               />
               <div className="flex flex-col gap-1">
