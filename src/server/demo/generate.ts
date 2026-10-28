@@ -16,11 +16,7 @@ import type {
   TimeOff,
   WorkingHours,
 } from "@/generated/prisma/client";
-import type {
-  BookingSource,
-  BookingStatus,
-  SalonDiscountSource,
-} from "@/generated/prisma/enums";
+import type { BookingSource, BookingStatus } from "@/generated/prisma/enums";
 import {
   addDays,
   addMinutes,
@@ -28,7 +24,8 @@ import {
   toSalonDate,
   weekdayOf,
 } from "@/lib/time";
-import { type Discount, discountAmount } from "@/server/pricing/discount";
+import { bookingBufferMin, calculatePricing } from "@/server/pricing/calculate";
+import type { Discount } from "@/server/pricing/discount";
 import {
   BOOKING_COMMENTS,
   CATEGORIES,
@@ -215,7 +212,6 @@ export function generateDemoData(options: {
   const promotionDefs = MASTERS.flatMap((def, index) =>
     ("promotions" in def ? def.promotions : []).map((promo) => ({
       masterIndex: index,
-      serviceKey: "service" in promo ? promo.service : undefined,
       row: {
         id: rng.id(),
         masterId: masterAt(index).id,
@@ -301,22 +297,10 @@ export function generateDemoData(options: {
     return ["haircut"];
   }
 
-  function bestMasterDiscount(
-    masterIndex: number,
-    serviceKey: ServiceKey,
-    price: number,
-    when: Date,
-  ): { amount: number; promotionId: string | null } {
-    let best = { amount: 0, promotionId: null as string | null };
-    for (const promo of promotionDefs) {
-      if (promo.masterIndex !== masterIndex) continue;
-      if (promo.serviceKey !== undefined && promo.serviceKey !== serviceKey)
-        continue;
-      if (!isWithin(when, promo.row.validFrom, promo.row.validUntil)) continue;
-      const amount = discountAmount(price, promo.row);
-      if (amount > best.amount) best = { amount, promotionId: promo.row.id };
-    }
-    return best;
+  function promotionsOf(masterIndex: number) {
+    return promotionDefs
+      .filter((promo) => promo.masterIndex === masterIndex)
+      .map((promo) => promo.row);
   }
 
   function overlapsTimeOff(masterId: string, start: Date, end: Date): boolean {
@@ -364,10 +348,9 @@ export function generateDemoData(options: {
             (sum, line) => sum + line.durationMin,
             0,
           );
-          const bufferMin = Math.max(
-            ...lines.map(
-              (line) => line.service.bufferMin ?? salon.defaultBufferMin,
-            ),
+          const bufferMin = bookingBufferMin(
+            lines.map((line) => line.service),
+            salon,
           );
 
           const startMin = ceilTo(cursor, salon.slotStepMin);
@@ -446,65 +429,59 @@ export function generateDemoData(options: {
           }
           const lastMoment = startsAt < now ? startsAt : now;
 
-          // Цены: скидка мастера на услугу, затем скидка салона на запись.
-          const items: BookingItem[] = lines.map((line, index) => {
-            const discount = bestMasterDiscount(
-              masterIndex,
-              line.key,
-              line.basePrice,
-              startsAt,
-            );
-            return {
-              id: must(roll.itemIds[index], "item id"),
-              bookingId: roll.id,
+          // Цены считает та же функция, что и запись с сайта (DESIGN.md, 7.3): скидка
+          // мастера на услугу, затем скидка салона на запись.
+          const manualDiscount = source !== "WEBSITE" && roll.promo > 0.97;
+          const validCodes = promoCodes.filter((code) =>
+            isWithin(createdAt, code.validFrom, code.validUntil),
+          );
+          const promoCode =
+            !manualDiscount &&
+            source === "WEBSITE" &&
+            roll.promo < 0.12 &&
+            validCodes.length > 0
+              ? must(
+                  validCodes[Math.floor(roll.promoPick * validCodes.length)],
+                  "promo code",
+                )
+              : null;
+          const pricing = calculatePricing({
+            services: lines.map((line) => ({
               serviceId: line.service.id,
-              serviceName: line.service.name,
               basePrice: line.basePrice,
-              masterDiscount: discount.amount,
-              price: line.basePrice - discount.amount,
-              isPriceManual: false,
               durationMin: line.durationMin,
-              promotionId: discount.promotionId,
-              sortOrder: index,
-            };
+              bufferMin: line.service.bufferMin,
+            })),
+            promotions: promotionsOf(masterIndex),
+            visitAt: startsAt,
+            now: createdAt,
+            promoCode: promoCode && { ...promoCode, uses: 0 },
+            clientDiscount: manualDiscount ? null : client.discount,
+            manualSalonDiscount: manualDiscount
+              ? { kind: "PERCENT", value: 10 }
+              : null,
+            settings: salon,
           });
-          const subtotal = items.reduce((sum, item) => sum + item.price, 0);
-
-          let salonDiscount = 0;
-          let salonDiscountSource: SalonDiscountSource | null = null;
-          let promoCodeId: string | null = null;
-          if (source !== "WEBSITE" && roll.promo > 0.97) {
-            salonDiscount = discountAmount(subtotal, {
-              kind: "PERCENT",
-              value: 10,
-            });
-            salonDiscountSource = "MANUAL";
-          } else {
-            if (client.discount !== null) {
-              salonDiscount = discountAmount(subtotal, client.discount);
-              salonDiscountSource = "CLIENT";
-            }
-            const validCodes = promoCodes.filter((code) =>
-              isWithin(createdAt, code.validFrom, code.validUntil),
-            );
-            if (
-              source === "WEBSITE" &&
-              roll.promo < 0.12 &&
-              validCodes.length > 0
-            ) {
-              const code = must(
-                validCodes[Math.floor(roll.promoPick * validCodes.length)],
-                "promo code",
-              );
-              const amount = discountAmount(subtotal, code);
-              if (amount > salonDiscount) {
-                salonDiscount = amount;
-                salonDiscountSource = "PROMO_CODE";
-                promoCodeId = code.id;
-              }
-            }
-          }
-          const totalPrice = subtotal - salonDiscount;
+          const items: BookingItem[] = pricing.items.map((item, index) => ({
+            id: must(roll.itemIds[index], "item id"),
+            bookingId: roll.id,
+            serviceId: item.serviceId,
+            serviceName: must(lines[index], "line").service.name,
+            basePrice: item.basePrice,
+            masterDiscount: item.masterDiscount,
+            price: item.price,
+            isPriceManual: item.isPriceManual,
+            durationMin: item.durationMin,
+            promotionId: item.promotionId,
+            sortOrder: index,
+          }));
+          const {
+            subtotal,
+            salonDiscount,
+            salonDiscountSource,
+            promoCodeId,
+            totalPrice,
+          } = pricing;
 
           const isConfirmed =
             status === "CONFIRMED" ||
