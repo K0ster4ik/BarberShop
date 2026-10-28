@@ -200,6 +200,23 @@ describe("getAvailableSlots", () => {
     ]);
   });
 
+  it("never offers time before a shift that starts in the skipped hour", () => {
+    // Смена с 02:30 в ночь перехода на летнее время: 02:30 нет, открытие — 03:30
+    const raw = getAvailableSlots({
+      date: "2026-03-29",
+      durationMin: 30,
+      bufferMin: 0,
+      workingHours: [shift("02:30", "04:00")],
+      timeOffs: [],
+      bookings: [],
+      now: new Date("2026-03-28T09:00:00Z"),
+      settings: { ...salon, timezone: "Europe/Berlin" },
+    });
+    expect(raw.map((slot) => slot.toISOString())).toEqual([
+      "2026-03-29T01:30:00.000Z", // 03:30 по Берлину
+    ]);
+  });
+
   it("aligns the grid to the salon's midnight, not to UTC", () => {
     // Индия — UTC+5:30: часовая сетка по местным часам — 10:00, 11:00, а не 10:30, 11:30
     const raw = getAvailableSlots({

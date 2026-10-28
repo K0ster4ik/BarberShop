@@ -76,4 +76,23 @@ describe("salonTimeToInstant", () => {
     );
     expect(dayLength).toBe(23 * 60);
   });
+
+  it("moves a time that does not exist forward, never back", () => {
+    // 29 марта 2026 в Берлине часы переводят с 02:00 на 03:00 — 02:30 не бывает.
+    // Как в RFC 5545 и Temporal: смещение до перехода, то есть 03:30 по местным часам.
+    const tz = "Europe/Berlin";
+    expect(salonTimeToInstant("2026-03-29", 150, tz)).toEqual(
+      new Date("2026-03-29T01:30:00Z"),
+    );
+    expect(salonTimeToInstant("2026-03-29", 180, tz)).toEqual(
+      new Date("2026-03-29T01:00:00Z"),
+    );
+  });
+
+  it("picks the second 02:30 when clocks go back", () => {
+    // 25 октября 2026 02:30 в Берлине бывает дважды; берётся зимнее (второе)
+    expect(salonTimeToInstant("2026-10-25", 150, "Europe/Berlin")).toEqual(
+      new Date("2026-10-25T01:30:00Z"),
+    );
+  });
 });

@@ -94,6 +94,22 @@ export function calculatePricing(input: PricingInput): PricingResult {
   if (input.services.length === 0) {
     throw new RangeError("A booking needs at least one service");
   }
+  // Формы проверяют это раньше; здесь — защита инварианта «итог не меньше нуля».
+  for (const service of input.services) {
+    assertKopecks(service.basePrice, "basePrice");
+    if (service.manualPrice != null) {
+      assertKopecks(service.manualPrice, "manualPrice");
+    }
+    if (!Number.isInteger(service.durationMin) || service.durationMin <= 0) {
+      throw new RangeError(`Invalid durationMin: ${service.durationMin}`);
+    }
+    if (
+      service.bufferMin !== null &&
+      (!Number.isInteger(service.bufferMin) || service.bufferMin < 0)
+    ) {
+      throw new RangeError(`Invalid bufferMin: ${service.bufferMin}`);
+    }
+  }
   const items = input.services.map((service) =>
     priceService(service, input.promotions, input.visitAt),
   );
@@ -107,6 +123,14 @@ export function calculatePricing(input: PricingInput): PricingResult {
     ...salon,
     totalPrice: subtotal - salon.salonDiscount,
   };
+}
+
+function assertKopecks(value: number, name: string): void {
+  if (!Number.isSafeInteger(value) || value < 0) {
+    throw new RangeError(
+      `${name} must be a non-negative kopecks amount: ${value}`,
+    );
+  }
 }
 
 /** Уборка после записи — самая долгая из услуг (DESIGN.md, 5.2, инвариант 4). */

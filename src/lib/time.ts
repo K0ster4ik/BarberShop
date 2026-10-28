@@ -1,4 +1,8 @@
-import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
+import {
+  formatInTimeZone,
+  fromZonedTime,
+  getTimezoneOffset,
+} from "date-fns-tz";
 import { salon } from "@/config/salon";
 
 // Время хранится в UTC, а расписание живёт по часам салона (DESIGN.md, 5.2, инвариант 2).
@@ -58,6 +62,9 @@ export function weekdayOf(date: DateString): number {
  * Момент времени для «дата + минуты от полуночи» по часам салона.
  * Минуты могут выходить за пределы суток (1440 — полночь следующего дня).
  * Переходы на летнее время учитываются: длина суток берётся из правил таймзоны.
+ * Времени из пропущенного часа (02:30 при переводе 02:00 → 03:00) не бывает: оно
+ * читается со смещением до перехода (как в RFC 5545 и Temporal) и становится 03:30.
+ * В повторяющийся час при переводе назад берётся второе, зимнее, время.
  */
 export function salonTimeToInstant(
   date: DateString,
@@ -71,7 +78,19 @@ export function salonTimeToInstant(
   const minuteOfDay = minutes - dayOffset * MINUTES_PER_DAY;
   const hh = String(Math.floor(minuteOfDay / 60)).padStart(2, "0");
   const mm = String(minuteOfDay % 60).padStart(2, "0");
-  return fromZonedTime(`${addDays(date, dayOffset)}T${hh}:${mm}:00`, timeZone);
+  const wall = `${addDays(date, dayOffset)}T${hh}:${mm}:00`;
+  const instant = fromZonedTime(wall, timeZone);
+  if (formatInTimeZone(instant, timeZone, "yyyy-MM-dd'T'HH:mm:ss") === wall) {
+    return instant;
+  }
+  // date-fns-tz сдвигает несуществующее время назад (02:30 → 01:30), и смена с 02:30
+  // начиналась бы раньше графика. Берём смещение за сутки до этого момента.
+  const naive = Date.parse(`${wall}Z`);
+  const offsetBefore = getTimezoneOffset(
+    timeZone,
+    new Date(naive - MINUTES_PER_DAY * 60_000),
+  );
+  return new Date(naive - offsetBefore);
 }
 
 /** 615 → «10:15», 1440 → «24:00» (конец суток в графике). */

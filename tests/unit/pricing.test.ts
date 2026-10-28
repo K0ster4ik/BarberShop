@@ -81,6 +81,18 @@ describe("calculatePricing: services", () => {
   it("refuses a booking without services", () => {
     expect(() => price({ services: [] })).toThrow(RangeError);
   });
+
+  it("refuses impossible amounts instead of producing a negative total", () => {
+    for (const service of [
+      { ...haircut, manualPrice: -5_000 },
+      { ...haircut, basePrice: -1 },
+      { ...haircut, basePrice: 100.5 }, // копейки — только целые
+      { ...haircut, durationMin: 0 },
+      { ...haircut, bufferMin: -5 },
+    ]) {
+      expect(() => price({ services: [service] })).toThrow(RangeError);
+    }
+  });
 });
 
 describe("calculatePricing: master discount", () => {
