@@ -2,8 +2,13 @@
 // Единая точка вызова OpenAI Codex CLI для навыков codex-* (.claude/skills).
 //
 //   node scripts/codex/run.mjs exec   --name ux-today   --prompt-file p.md [--image a.png ...] [--schema s.json]
-//   node scripts/codex/run.mjs review --name stage-04   --base main --schema scripts/codex/schemas/review.json < prompt.md
+//   node scripts/codex/run.mjs review --name stage-04   --base main | --commit <sha> | --uncommitted \
+//                                     --schema scripts/codex/schemas/review.json --prompt-file p.md
 //   node scripts/codex/run.mjs exec   --resume <session-id> --prompt-file followup.md
+//
+// `review` — это `codex exec` только на чтение с нашими инструкциями: встроенный `codex exec review`
+// не принимает свои инструкции вместе с выбором диапазона (--base/--commit/--uncommitted),
+// а нам нужны оба. Диапазон обёртка дописывает в начало промпта, дифф Codex получает сам через git.
 //
 // Что делает поверх `codex exec`:
 // - находит Codex (CODEX_BIN → глобальный npm → расширение VS Code), путь которого меняется при обновлениях;
@@ -46,8 +51,11 @@ const { values: opts, positionals } = parseArgs({
     image: { type: "string", multiple: true, default: [] },
     schema: { type: "string" },
     base: { type: "string" },
+    commit: { type: "string" },
     uncommitted: { type: "boolean", default: false },
     resume: { type: "string" },
+    // Переопределения ~/.codex/config.toml, передаются как `-c key=value` (повторяемый).
+    config: { type: "string", multiple: true, default: [] },
     "collect-images": { type: "string" },
     timeout: { type: "string", default: "15" },
     "dry-run": { type: "boolean", default: false },
@@ -132,6 +140,7 @@ function stamp() {
 function buildArgs(runDir, workDir) {
   const lastFile = path.join(runDir, "last.md");
   const common = ["--json", "-o", lastFile];
+  for (const override of opts.config) common.push("-c", override);
   if (opts.schema) common.push("--output-schema", path.resolve(opts.schema));
   for (const image of opts.image) common.push("-i", path.resolve(image));
 
@@ -143,19 +152,6 @@ function buildArgs(runDir, workDir) {
       "--skip-git-repo-check",
       opts.resume,
       "-",
-    ];
-  }
-  if (task === "review") {
-    const scope = opts.uncommitted
-      ? ["--uncommitted"]
-      : ["--base", opts.base ?? "main"];
-    // Свои инструкции к ревью необязательны: без них Codex использует стандартные.
-    return [
-      "exec",
-      "review",
-      ...common,
-      ...scope,
-      ...(prompt.trim() ? ["-"] : []),
     ];
   }
   return [
@@ -170,26 +166,39 @@ function buildArgs(runDir, workDir) {
   ];
 }
 
-/** Новые картинки за время запуска: из рабочей папки и из хранилища Codex. */
-function collectImages(sinceMs, workDir, targetDir) {
-  const roots = [
-    workDir,
-    path.join(
-      process.env.CODEX_HOME ?? path.join(homedir(), ".codex"),
-      "generated_images",
-    ),
-  ];
+function findImages(root, sinceMs) {
   const found = [];
   const walk = (dir, depth) => {
     if (!existsSync(dir) || depth > 4) return;
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
       const full = path.join(dir, entry.name);
       if (entry.isDirectory()) walk(full, depth + 1);
-      else if (IMAGE_EXT.test(entry.name) && statSync(full).mtimeMs >= sinceMs)
+      else if (
+        IMAGE_EXT.test(entry.name) &&
+        statSync(full).mtimeMs >= sinceMs
+      ) {
         found.push(full);
+      }
     }
   };
-  roots.forEach((root) => walk(root, 0));
+  walk(root, 0);
+  return found;
+}
+
+/**
+ * Новые картинки за время запуска. Codex сохраняет оригинал генерации в своё хранилище
+ * (~/.codex/generated_images/<сессия>/), а итоговый файл нужного размера кладёт в рабочую
+ * папку. Берём рабочую папку, а хранилище этой сессии — только если там пусто.
+ */
+function collectImages(sinceMs, workDir, targetDir, session) {
+  let found = findImages(workDir, sinceMs);
+  if (found.length === 0 && session) {
+    const codexHome = process.env.CODEX_HOME ?? path.join(homedir(), ".codex");
+    found = findImages(
+      path.join(codexHome, "generated_images", session),
+      sinceMs,
+    );
+  }
   mkdirSync(targetDir, { recursive: true });
   return found.map((file) => {
     const dest = path.join(targetDir, path.basename(file));
@@ -198,9 +207,35 @@ function collectImages(sinceMs, workDir, targetDir) {
   });
 }
 
-const prompt = readPrompt();
-if (!prompt.trim() && task === "exec")
+/** Что именно ревьюить — дописывается в начало инструкций для режима review. */
+function reviewScope() {
+  const ref = /^[\w./-]+$/;
+  if (opts.uncommitted) {
+    return "Незакоммиченные изменения: `git diff HEAD` и новые файлы из `git status --short`.";
+  }
+  if (opts.commit) {
+    if (!ref.test(opts.commit)) fail(`Invalid --commit: ${opts.commit}`);
+    return `Изменения коммита ${opts.commit}: \`git show ${opts.commit}\`.`;
+  }
+  const base = opts.base ?? "main";
+  if (!ref.test(base)) fail(`Invalid --base: ${base}`);
+  return `Изменения ветки относительно ${base}: \`git diff ${base}...HEAD\` (коммиты — \`git log --oneline ${base}..HEAD\`).`;
+}
+
+const instructions = readPrompt();
+if (!instructions.trim()) {
   fail("Empty prompt: pass --prompt-file or pipe it via stdin.");
+}
+const prompt =
+  task === "review"
+    ? [
+        "Это ревью кода. Получи изменения командой ниже, для контекста читай связанные файлы",
+        "проекта, ничего не изменяй и не запускай команды, которые пишут на диск.",
+        `Диапазон: ${reviewScope()}`,
+        "",
+        instructions,
+      ].join("\n")
+    : instructions;
 
 const runDir = path.join(
   RUNS_DIR,
@@ -285,7 +320,8 @@ child.on("close", (code) => {
     const tail = stderrText.trim().split("\n").slice(-8).join("\n");
     fail(
       `Codex exited with code ${code} after ${seconds}s.\n${tail}\nSee ${path.relative(REPO_ROOT, runDir)}`,
-      code || 1,
+      // Код 2 зарезервирован за «слетел вход», остальные ошибки — 1.
+      1,
     );
   }
 
@@ -295,6 +331,7 @@ child.on("close", (code) => {
       startedAt,
       workDir,
       path.resolve(opts["collect-images"]),
+      sessionId,
     );
     log(
       images.length

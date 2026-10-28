@@ -13,7 +13,8 @@ where each finding is checked against the code before it changes anything or rea
 ## 1. Run the review
 
 The stage's work should be committed on its branch (review against `main`). For work not yet
-committed, use `--uncommitted` instead of `--base main`.
+committed, use `--uncommitted` instead of `--base main`; for a single commit that is already merged,
+use `--commit <sha>`.
 
 Write the review instructions to a temp file (scratchpad), filling in the template below, then run in
 the background — a review takes 2–10 minutes:
@@ -29,8 +30,11 @@ Use `run_in_background: true` and wait for the notification. The result (JSON ma
 Instructions template (Codex answers in the language of the prompt, and the findings end up in a
 Russian report, so write it in Russian):
 
+The runner prepends which changes to review (`git diff main...HEAD`, `git show <sha>` or the
+uncommitted diff) and tells Codex not to modify anything, so the template only describes the stage:
+
 ```text
-Сделай ревью изменений этой ветки относительно main в проекте «Барбершоп»
+Сделай ревью этих изменений в проекте «Барбершоп»
 (Next.js 16 с Cache Components, Prisma 7 + PostgreSQL, Better Auth). Правила проекта —
 в DESIGN.md (особенно разделы 4, 5.2, 7 и 10) и AGENTS.md.
 

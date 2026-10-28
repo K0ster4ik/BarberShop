@@ -1,0 +1,59 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Exploratory test plan",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["summary", "scenarios"],
+  "properties": {
+    "summary": {
+      "type": "string",
+      "description": "2-4 sentences in Russian: where the risk of this change is concentrated."
+    },
+    "scenarios": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "priority",
+          "title",
+          "risk",
+          "role",
+          "viewport",
+          "start_url",
+          "steps",
+          "expected"
+        ],
+        "properties": {
+          "priority": { "type": "string", "enum": ["high", "medium", "low"] },
+          "title": { "type": "string", "description": "Russian." },
+          "risk": {
+            "type": "string",
+            "description": "What could break and why, with a reference to the code. Russian."
+          },
+          "role": {
+            "type": "string",
+            "enum": ["guest", "owner", "admin", "master"]
+          },
+          "viewport": {
+            "type": "string",
+            "enum": ["mobile", "desktop", "any"]
+          },
+          "start_url": {
+            "type": "string",
+            "description": "Path, e.g. /admin/login?next=..."
+          },
+          "steps": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Concrete browser actions. Russian."
+          },
+          "expected": {
+            "type": "string",
+            "description": "Observable result. Russian."
+          }
+        }
+      }
+    }
+  }
+}

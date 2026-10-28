@@ -32,9 +32,13 @@ otherwise may describe the image instead of saving it:
 ```text
 Сгенерируй изображение встроенным инструментом генерации изображений.
 <описание по брифу и стилю>
-Сохрани результат в текущую рабочую папку как <name>.png в размере <W×H>.
-Не пиши код и не создавай других файлов.
+Сохрани результат в текущую рабочую папку как <name>.webp в размере <W×H>, качество около 80.
+Не создавай других файлов.
 ```
+
+Ask for WebP (or JPEG for photos) up front: Codex resizes and converts the result itself, while a
+PNG portrait at 800×1000 comes out around 2 MB — too heavy for the site. The untouched original
+stays in `~/.codex/generated_images/<session>/` in case a different crop is needed later.
 
 ```bash
 node scripts/codex/run.mjs exec --name img-<slug> --sandbox workspace-write \
@@ -42,7 +46,8 @@ node scripts/codex/run.mjs exec --name img-<slug> --sandbox workspace-write \
 ```
 
 `--sandbox workspace-write` lets Codex write only inside its run folder. `--collect-images` copies
-every image created during the run into the given folder and lists the paths.
+the images Codex saved there into the given folder and lists the paths. A run takes about
+2–3 minutes; run it in the background.
 
 ## 3. Check it yourself
 
