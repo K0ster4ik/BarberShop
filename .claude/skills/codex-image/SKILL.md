@@ -20,7 +20,9 @@ Decide before generating:
 - **file name** — lowercase, hyphenated, meaningful (`master-artem-sokolov.webp`).
 
 Build the prompt from the subject plus the shared style in `references/style.md` (read it; it keeps
-the whole set visually consistent). Always include these constraints: no text or letters in the
+the whole set visually consistent). For master portraits, also attach the approved sample
+`references/style-sample-master.webp` with `--image`; words alone drift between runs, a reference
+image keeps light and framing the same across the set. Always include these constraints: no text or letters in the
 image unless the brief needs it, no logos or watermarks, only fictional people — never a real
 person's likeness.
 
