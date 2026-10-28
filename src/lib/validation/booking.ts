@@ -76,8 +76,8 @@ export const bookingContactsSchema = z
 export type BookingContacts = z.infer<typeof bookingContactsSchema>;
 
 /**
- * Запрос на создание записи. `expectedTotal` — итог, который видел клиент: если цена
- * успела измениться, сервер не записывает, а показывает новую. `website` — ловушка
+ * Запрос на создание записи. `expected*` — итог, мастер и длительность, которые видел
+ * клиент: если что-то из этого успело измениться, сервер не записывает, а показывает новое. `website` — ловушка
  * для ботов, человек его не видит и не заполняет.
  */
 export const createBookingSchema = z
@@ -85,6 +85,8 @@ export const createBookingSchema = z
     ...bookingSelectionShape,
     ...contactsShape,
     expectedTotal: z.number().int().min(0),
+    expectedMasterId: idField,
+    expectedDurationMin: z.number().int().positive(),
     website: z.string(),
   })
   .superRefine(refinePhone);

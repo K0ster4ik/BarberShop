@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 export default function BookPage({ searchParams }: PageProps<"/book">) {
   return (
     <>
-      <div className="relative hidden h-44 overflow-hidden md:block">
+      <div className="relative hidden h-28 overflow-hidden md:block">
         <Image
           src={interior}
           alt=""

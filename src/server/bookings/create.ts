@@ -29,10 +29,15 @@ export const PROMO_CODE_RAN_OUT =
   "Промокод только что закончился: лимит использований исчерпан.";
 
 export type CreateBookingResult =
-  | { status: "created"; token: string; bookingId: string }
-  // Цена (или мастер для «любого») изменилась с момента, когда клиент её видел:
-  // ничего не записано, клиент подтверждает новую цену.
-  | { status: "price_changed"; quote: BookingQuote };
+  | {
+      status: "created";
+      token: string;
+      bookingId: string;
+      notificationId: string;
+    }
+  // Цена, мастер (для «любого») или длительность изменились с момента, когда клиент
+  // их видел: ничего не записано, клиент подтверждает новую сводку.
+  | { status: "changed"; quote: BookingQuote };
 
 export async function createWebsiteBooking(
   db: PrismaClient,
@@ -63,9 +68,13 @@ export async function createWebsiteBooking(
       clientDiscount,
       promoCode,
     });
-    if (pricing.totalPrice !== input.expectedTotal) {
+    if (
+      pricing.totalPrice !== input.expectedTotal ||
+      offer.master.id !== input.expectedMasterId ||
+      pricing.durationMin !== input.expectedDurationMin
+    ) {
       return {
-        status: "price_changed",
+        status: "changed",
         quote: { visitAt, offer, pricing, promoCode, clientDiscount },
       };
     }
@@ -180,8 +189,14 @@ async function insertBooking(
         },
         notifications: { create: { type: "BOOKING_CREATED" } },
       },
-      select: { id: true },
+      select: { id: true, notifications: { select: { id: true } } },
     });
-    return { token, bookingId: booking.id };
+    const notification = booking.notifications[0];
+    if (!notification) throw new Error("Notification was not created");
+    return {
+      token,
+      bookingId: booking.id,
+      notificationId: notification.id,
+    };
   });
 }

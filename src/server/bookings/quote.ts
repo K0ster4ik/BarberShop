@@ -8,7 +8,7 @@ import {
   type PromoCodeOffer,
 } from "@/server/pricing/calculate";
 import type { Discount } from "@/server/pricing/discount";
-import { loadAvailability } from "./availability";
+import { bookingDates, loadAvailability } from "./availability";
 import { loadOffers, type MasterOffer } from "./offer";
 
 // Выбор клиента → конкретный мастер, время и цена (DESIGN.md, 6.4 и 7.3). Этим же
@@ -18,6 +18,8 @@ export const SLOT_TAKEN = "Это время только что заняли. �
 export const MASTER_UNAVAILABLE =
   "Мастер больше не делает выбранные услуги. Выберите другого.";
 export const PROMO_NOT_FOUND = "Такого промокода нет";
+export const DATE_UNAVAILABLE =
+  "На эту дату записаться нельзя: запись открыта на ближайшие 30 дней. Выберите другую.";
 
 export type PromoCodeMatch = PromoCodeOffer & { code: string };
 
@@ -41,6 +43,9 @@ export async function resolveSelection(
       : all.filter((offer) => offer.master.id === selection.masterId);
   if (offers.length === 0) throw new DomainError(MASTER_UNAVAILABLE);
 
+  if (!bookingDates(now, settings).includes(selection.date)) {
+    throw new DomainError(DATE_UNAVAILABLE);
+  }
   const visitAt = salonTimeToInstant(
     selection.date,
     timeToMinutes(selection.time) ?? Number.NaN,

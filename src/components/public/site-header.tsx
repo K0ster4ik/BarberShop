@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
+import { BookButton } from "./book-button";
 import { ThemeToggle } from "./theme-toggle";
 
 export function SiteHeader() {
@@ -13,9 +13,7 @@ export function SiteHeader() {
           Барбершоп
         </Link>
         <ThemeToggle />
-        <Button asChild size="lg">
-          <Link href="/book">Записаться</Link>
-        </Button>
+        <BookButton />
       </div>
     </header>
   );

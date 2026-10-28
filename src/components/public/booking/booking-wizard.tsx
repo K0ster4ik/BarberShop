@@ -155,7 +155,6 @@ async function stepContent(state: WizardState, now: Date): Promise<ReactNode> {
         selection={selection}
         initialQuote={toQuoteView(quote)}
         when={formatSalonVisit(quote.visitAt)}
-        duration={formatDuration(quote.pricing.durationMin)}
         countries={countryOptions()}
       />
     );

@@ -14,12 +14,14 @@ export function SelectionSummary({
   duration,
   master,
   when,
+  note,
   price,
 }: {
   services: string[];
   duration?: string;
   master?: SummaryMaster | "any";
   when?: string;
+  note?: ReactNode; // пояснение под мастером («назначили по времени»)
   price?: ReactNode;
 }) {
   return (
@@ -50,6 +52,7 @@ export function SelectionSummary({
           </div>
         </div>
       )}
+      {note}
       <ul className="flex flex-col gap-1">
         {services.map((name) => (
           <li key={name} className="flex gap-2">

@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import Link from "next/link";
-import { useId, useRef, useState, useTransition } from "react";
+import { useEffect, useId, useRef, useState, useTransition } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { TextareaField, TextField } from "@/components/forms/fields";
 import { runWithToast, submitAction } from "@/components/forms/submit";
@@ -27,10 +27,11 @@ import {
 } from "@/lib/validation/booking";
 import type { QuoteView } from "@/server/bookings/quote-view";
 import { getBookingQuote, submitBooking } from "@/server/bookings/site-actions";
+import { formatDuration } from "./format";
 import { BookingFrame } from "./frame";
 import { PriceBreakdown } from "./price-breakdown";
 import { SelectionSummary } from "./selection-summary";
-import { wizardHref } from "./wizard-state";
+import { ANY_MASTER, wizardHref } from "./wizard-state";
 
 export type CountryOption = { code: string; label: string };
 
@@ -41,20 +42,36 @@ export function ContactsStep({
   selection,
   initialQuote,
   when,
-  duration,
   countries,
 }: {
   selection: BookingSelection;
   initialQuote: QuoteView;
   when: string;
-  duration: string;
   countries: CountryOption[];
 }) {
   const [quote, setQuote] = useState(initialQuote);
+  const duration = formatDuration(quote.durationMin);
+  // «Любой мастер»: мастер назначен по выбранному времени, но можно выбрать самому.
+  const assignedNote =
+    selection.masterId === ANY_MASTER ? (
+      <p className="text-sm text-muted-foreground">
+        Назначили по выбранному времени.{" "}
+        <Link
+          href={wizardHref({
+            step: "master",
+            serviceIds: selection.serviceIds,
+          })}
+          className="text-primary underline underline-offset-4"
+        >
+          Выбрать мастера самому
+        </Link>
+      </p>
+    ) : null;
   // Что изменилось, пока клиент заполнял форму: цена или (для «любого») мастер.
   const [changeNotice, setChangeNotice] = useState<string | null>(null);
   const [quoting, startQuote] = useTransition();
   const quotedFor = useRef({ phone: "", promoCode: "" });
+  const quoteRequest = useRef(0);
   const phoneId = useId();
   const promoId = useId();
   const consentId = useId();
@@ -71,14 +88,30 @@ export function ContactsStep({
     },
   });
 
+  // Если время заняли и клиент вернулся выбрать другое, имя и телефон не вводятся
+  // заново: они живут в sessionStorage этой вкладки (в адрес контакты не попадают).
+  // Сначала восстанавливаем, потом подписываемся: сохраняются только правки клиента,
+  // а не пустые значения формы при монтировании.
+  useEffect(() => {
+    const saved = readSavedContacts();
+    if (saved) form.reset({ ...form.getValues(), ...saved });
+    return form.subscribe({
+      formState: { values: true },
+      callback: ({ values }) => saveContacts(values),
+    });
+  }, [form]);
+
   /** Пересчёт цены: постоянная скидка по телефону и промокод. */
   function requote(promoCode: string) {
     const { phone, country } = form.getValues();
     const e164 = normalizePhone(phone, country as CountryCode) ?? "";
+    const request = ++quoteRequest.current;
     startQuote(async () => {
       const result = await runWithToast(() =>
         getBookingQuote({ ...selection, country, phone: e164, promoCode }),
       );
+      // Клиент успел поменять телефон или код — этот ответ уже не про то, что на экране.
+      if (request !== quoteRequest.current) return;
       if (result?.ok) {
         setQuote(result.data);
         quotedFor.current = { phone: e164, promoCode };
@@ -104,15 +137,13 @@ export function ContactsStep({
         ...values,
         website,
         expectedTotal: quote.totalPrice,
+        expectedMasterId: quote.master.id,
+        expectedDurationMin: quote.durationMin,
       }),
     );
-    const fresh = result?.ok ? result.data.priceChanged : null;
+    const fresh = result?.ok ? result.data.changed : null;
     if (fresh) {
-      setChangeNotice(
-        fresh.master.id === quote.master.id
-          ? `Пока вы заполняли форму, цена изменилась: теперь ${formatMoney(fresh.totalPrice)}.`
-          : `Пока вы заполняли форму, это время заняли у мастера ${quote.master.name}. Свободен ${fresh.master.name}, цена — ${formatMoney(fresh.totalPrice)}.`,
-      );
+      setChangeNotice(describeChange(quote, fresh));
       setQuote(fresh);
     }
   }
@@ -139,6 +170,7 @@ export function ContactsStep({
           duration={duration}
           master={quote.master}
           when={when}
+          note={assignedNote}
           price={<PriceBreakdown quote={quote} />}
         />
       }
@@ -152,15 +184,29 @@ export function ContactsStep({
       }
       action={action}
     >
-      <section className="flex flex-col gap-4 rounded-xl border bg-card p-4 sm:p-5 lg:hidden">
-        <SelectionSummary
-          services={[]}
-          master={quote.master}
-          when={when}
-          duration={duration}
-        />
-        <PriceBreakdown quote={quote} />
-      </section>
+      {/* Телефон: короткая сводка, подробности — по нажатию, чтобы форма была на первом экране. */}
+      <details className="group rounded-xl border bg-card lg:hidden">
+        <summary className="flex min-h-11 cursor-pointer list-none items-center gap-3 p-4 [&::-webkit-details-marker]:hidden">
+          <span className="min-w-0 flex-1">
+            <span className="block font-medium">{when}</span>
+            <span className="block truncate text-sm text-muted-foreground">
+              {quote.master.name} · {duration}
+            </span>
+          </span>
+          <span className="shrink-0 text-right">
+            <span className="block font-semibold tabular-nums">
+              {formatMoney(quote.totalPrice)}
+            </span>
+            <span className="block text-xs text-primary underline underline-offset-4 group-open:hidden">
+              Детали
+            </span>
+          </span>
+        </summary>
+        <div className="flex flex-col gap-4 border-t p-4">
+          {assignedNote}
+          <PriceBreakdown quote={quote} />
+        </div>
+      </details>
 
       {changeNotice && (
         <Alert>
@@ -237,8 +283,8 @@ export function ContactsStep({
               />
             </div>
             <FieldDescription>
-              Понадобится, только если что-то изменится. Можно ввести номер
-              любой страны, начиная с «+».
+              Выберите страну и введите номер без кода. Номер, начинающийся с
+              «+», определит страну сам.
             </FieldDescription>
             {form.formState.errors.phone && (
               <FieldError errors={[form.formState.errors.phone]} />
@@ -246,7 +292,7 @@ export function ContactsStep({
           </Field>
 
           <Field data-invalid={!!form.formState.errors.promoCode}>
-            <FieldLabel htmlFor={promoId}>Промокод</FieldLabel>
+            <FieldLabel htmlFor={promoId}>Промокод, если есть</FieldLabel>
             <div className="flex gap-2">
               <Controller
                 control={form.control}
@@ -359,4 +405,48 @@ export function ContactsStep({
       </Button>
     </BookingFrame>
   );
+}
+
+/** Что изменилось, пока клиент заполнял форму. */
+function describeChange(before: QuoteView, after: QuoteView): string {
+  const parts: string[] = [];
+  if (after.master.id !== before.master.id) {
+    parts.push(
+      `время у мастера ${before.master.name} заняли — свободен ${after.master.name}`,
+    );
+  }
+  if (after.durationMin !== before.durationMin) {
+    parts.push(`визит займёт ${formatDuration(after.durationMin)}`);
+  }
+  if (after.totalPrice !== before.totalPrice) {
+    parts.push(`цена теперь ${formatMoney(after.totalPrice)}`);
+  }
+  return `Пока вы заполняли форму, ${parts.join(", ") || "условия изменились"}.`;
+}
+
+const CONTACTS_KEY = "booking-contacts";
+type SavedContacts = Pick<
+  BookingContacts,
+  "name" | "country" | "phone" | "comment"
+>;
+
+function readSavedContacts(): SavedContacts | null {
+  try {
+    const raw = window.sessionStorage.getItem(CONTACTS_KEY);
+    return raw ? (JSON.parse(raw) as SavedContacts) : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveContacts(values: Partial<BookingContacts>) {
+  try {
+    const { name, country, phone, comment } = values;
+    window.sessionStorage.setItem(
+      CONTACTS_KEY,
+      JSON.stringify({ name, country, phone, comment }),
+    );
+  } catch {
+    // Приватный режим или запрет хранилища: просто не запоминаем.
+  }
 }

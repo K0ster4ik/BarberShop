@@ -2,7 +2,7 @@
 
 import { ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { timeToMinutes, weekdayOf } from "@/lib/time";
@@ -73,12 +73,17 @@ export function TimeStep({
 }) {
   const router = useRouter();
   const available = days.filter((day) => day.times.length > 0);
-  const [date, setDate] = useState(
-    () =>
-      available.find((day) => day.date === state.date)?.date ??
+  // Адрес важнее пропсов: при «назад» с контактов Next.js показывает страницу из своей
+  // истории, а выбранный день мог дописаться в адрес уже после её отрисовки.
+  const searchParams = useSearchParams();
+  const [date, setDate] = useState(() => {
+    const wanted = searchParams.get("date") ?? state.date;
+    return (
+      available.find((day) => day.date === wanted)?.date ??
       available[0]?.date ??
-      null,
-  );
+      null
+    );
+  });
   const months = [...new Set(days.map((day) => day.date.slice(0, 7)))];
   const [month, setMonth] = useState(
     () => date?.slice(0, 7) ?? months[0] ?? "",
@@ -215,10 +220,20 @@ export function TimeStep({
               );
             })}
           </div>
+          <p className="text-xs text-muted-foreground">
+            Зачёркнуты дни без свободного времени.
+          </p>
         </section>
 
         <section aria-label="Время" className="flex flex-col gap-4">
-          {date && <h2 className="font-semibold">{dayLabel(date)}</h2>}
+          {date && (
+            <div>
+              <h2 className="font-semibold">{dayLabel(date)}</h2>
+              <p className="text-sm text-muted-foreground">
+                Выберите время — затем укажете контакты.
+              </p>
+            </div>
+          )}
           {PARTS.map((part, index) => {
             const from = PARTS[index - 1]?.until ?? 0;
             const inPart = times.filter((time) => {

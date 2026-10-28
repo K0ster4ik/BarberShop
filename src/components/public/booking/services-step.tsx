@@ -1,8 +1,8 @@
 "use client";
 
 import { ArrowRight, Check } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { MAX_SERVICES_PER_BOOKING } from "@/lib/validation/booking";
 import { cn } from "@/lib/utils";
@@ -22,9 +22,26 @@ export function ServicesStep({
 }) {
   const router = useRouter();
   const all = categories.flatMap((category) => category.services);
-  const [selected, setSelected] = useState(() =>
-    initial.filter((id) => all.some((service) => service.id === id)),
-  );
+  // Адрес важнее пропсов: при «назад» Next.js показывает страницу из своей истории,
+  // а выбор мог дописаться в адрес уже после её первой отрисовки.
+  const searchParams = useSearchParams();
+  const [selected, setSelected] = useState(() => {
+    const fromAddress = (searchParams.get("services") ?? "")
+      .split(",")
+      .filter(Boolean);
+    return (fromAddress.length ? fromAddress : initial).filter((id) =>
+      all.some((service) => service.id === id),
+    );
+  });
+  // Выбор сразу попадает в адрес (без запроса к серверу): «назад» с шага мастера
+  // и обновление страницы его не теряют.
+  useEffect(() => {
+    window.history.replaceState(
+      null,
+      "",
+      wizardHref({ step: "services", serviceIds: selected }),
+    );
+  }, [selected]);
   const chosen = all.filter((service) => selected.includes(service.id));
   const full = selected.length >= MAX_SERVICES_PER_BOOKING;
 

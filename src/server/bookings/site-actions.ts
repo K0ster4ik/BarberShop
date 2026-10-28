@@ -37,10 +37,13 @@ async function enforce(
   }
 }
 
-/** Уведомления уходят после ответа клиенту: медленный Telegram не задерживает запись. */
-function deliverLater() {
+/**
+ * Уведомление уходит после ответа клиенту: медленный Telegram не задерживает запись.
+ * Только своё — старые неудачные повторяет cron с паузами, а не каждая новая заявка.
+ */
+function deliverLater(notificationId: string) {
   after(() =>
-    deliverPendingNotifications().catch((error: unknown) => {
+    deliverPendingNotifications([notificationId]).catch((error: unknown) => {
       console.error("Telegram: ошибка отправки", error);
     }),
   );
@@ -77,12 +80,12 @@ export async function getBookingQuote(
 }
 
 /**
- * Создаёт запись и уводит на её страницу. Если цена изменилась с момента, когда клиент
- * её видел, ничего не записывает и возвращает новую цену на подтверждение.
+ * Создаёт запись и уводит на её страницу. Если цена, мастер или длительность изменились
+ * с момента, когда клиент их видел, ничего не записывает и возвращает новую сводку.
  */
 export async function submitBooking(
   input: unknown,
-): Promise<ActionResult<{ priceChanged: QuoteView }>> {
+): Promise<ActionResult<{ changed: QuoteView }>> {
   return runAction(async () => {
     const request = createBookingSchema.parse(input);
     if (request.website) {
@@ -95,10 +98,10 @@ export async function submitBooking(
       "С вашего адреса слишком много заявок. Попробуйте через 10 минут.",
     );
     const result = await createWebsiteBooking(db, request, new Date());
-    if (result.status === "price_changed") {
-      return { priceChanged: toQuoteView(result.quote) };
+    if (result.status === "changed") {
+      return { changed: toQuoteView(result.quote) };
     }
-    deliverLater();
+    deliverLater(result.notificationId);
     redirect(`/booking/${result.token}`);
   });
 }
@@ -109,12 +112,12 @@ export async function cancelMyBooking(token: string): Promise<ActionResult> {
       cancelLimiter,
       "Слишком много попыток. Подождите пару минут.",
     );
-    await cancelBookingByToken(
+    const { notificationId } = await cancelBookingByToken(
       db,
       z.string().max(100).parse(token),
       new Date(),
     );
-    deliverLater();
+    deliverLater(notificationId);
     refresh();
     return undefined;
   }, "Запись отменена");

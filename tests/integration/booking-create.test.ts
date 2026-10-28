@@ -97,6 +97,8 @@ async function bookingInput(
   return createBookingSchema.parse({
     ...base,
     expectedTotal: overrides.expectedTotal ?? quote.pricing.totalPrice,
+    expectedMasterId: quote.offer.master.id,
+    expectedDurationMin: quote.pricing.durationMin,
   });
 }
 
@@ -254,6 +256,33 @@ describe("createWebsiteBooking", () => {
     );
   });
 
+  it("asks again when «any master» now means another master", async () => {
+    const shared = (await freeTimes()).find(
+      (slot) => slot.masterIds.length > 1,
+    );
+    if (!shared) throw new Error("No time with two free masters");
+    // Клиент увидел первого мастера; пока заполнял форму, его время заняли
+    const stale = await bookingInput({
+      time: shared.time,
+      masterId: ANY_MASTER,
+    });
+    await createWebsiteBooking(
+      db,
+      await bookingInput({
+        time: shared.time,
+        masterId: stale.expectedMasterId,
+      }),
+      TEST_NOW,
+    );
+
+    const result = await createWebsiteBooking(db, stale, TEST_NOW);
+    // Даже при той же цене — не записываем молча к другому мастеру
+    expect(result.status).toBe("changed");
+    if (result.status === "changed") {
+      expect(result.quote.offer.master.id).not.toBe(stale.expectedMasterId);
+    }
+  });
+
   it("does not book at a price the client has not seen", async () => {
     const [free] = await freeTimes();
     if (!free) throw new Error("No slots");
@@ -264,7 +293,7 @@ describe("createWebsiteBooking", () => {
     });
     const before = await db.booking.count();
     const result = await createWebsiteBooking(db, input, TEST_NOW);
-    expect(result.status).toBe("price_changed");
+    expect(result.status).toBe("changed");
     expect(await db.booking.count()).toBe(before);
   });
 
@@ -374,8 +403,14 @@ describe("deliverNotifications", () => {
     });
 
     const texts: string[] = [];
-    await deliverNotifications(db, async (text) => {
+    const send = async (text: string) => {
       texts.push(text);
+    };
+    // Сразу после ошибки повтора нет — только через 5 минут
+    await deliverNotifications(db, send);
+    expect(texts).toHaveLength(0);
+    await deliverNotifications(db, send, {
+      now: addMinutes(notification.createdAt, 5),
     });
     expect(texts).toHaveLength(1);
     expect(texts[0]).toContain("Новая запись");
@@ -385,6 +420,33 @@ describe("deliverNotifications", () => {
         where: { id: notification.id },
       }),
     ).toMatchObject({ attempts: 2, lastError: null, sentAt: expect.any(Date) });
+  });
+
+  it("sends only the given notifications right after a booking", async () => {
+    const first = await queued();
+    const second = await createWebsiteBooking(
+      db,
+      await bookingInput({
+        time: (await freeTimes()).at(-1)?.time ?? "",
+        masterId: ANY_MASTER,
+      }),
+      TEST_NOW,
+    );
+    if (second.status !== "created") throw new Error(second.status);
+
+    const sent: string[] = [];
+    await deliverNotifications(
+      db,
+      async (text) => {
+        sent.push(text);
+      },
+      { ids: [second.notificationId] },
+    );
+    expect(sent).toHaveLength(1);
+    expect(
+      (await db.notification.findUniqueOrThrow({ where: { id: first.id } }))
+        .attempts,
+    ).toBe(0);
   });
 
   it("sends each message once when two deliveries run at the same time", async () => {

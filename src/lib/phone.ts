@@ -26,17 +26,21 @@ export function formatPhone(e164: string): string {
 }
 
 /**
- * Для публичного канала: код страны и первая группа видны, из остального — только
- * две последние цифры. «+7 999 *** ** 67».
+ * Для публичного канала: код страны виден, из национального номера — первая группа
+ * и две последние цифры, остальное скрыто: «+7 999 *** ** 67». Если после этого
+ * скрытыми остались бы меньше трёх цифр (короткие номера одной группой, как
+ * +500 51234), первая группа тоже скрывается: «+500 ***34».
  */
 export function maskPhone(e164: string): string {
-  const [code = "", first = "", ...rest] = formatPhone(e164).split(" ");
-  const tail = rest.join(" ");
-  const digits = tail.replace(/\D/g, "").length;
-  let seen = 0;
-  const masked = tail.replace(/\d/g, (digit) => {
-    seen += 1;
-    return seen > digits - 2 ? digit : "*";
+  const [code = "", ...groups] = formatPhone(e164).split(" ");
+  const national = groups.join(" ");
+  const digits = national.replace(/\D/g, "").length;
+  const firstGroup = (groups[0] ?? "").replace(/\D/g, "").length;
+  const shown = digits - firstGroup - 2 >= 3 ? firstGroup : 0;
+  let index = 0;
+  const masked = national.replace(/\d/g, (digit) => {
+    index += 1;
+    return index <= shown || index > digits - 2 ? digit : "*";
   });
-  return [code, first, masked].filter(Boolean).join(" ");
+  return [code, masked].filter(Boolean).join(" ");
 }

@@ -5,6 +5,7 @@ import { connection } from "next/server";
 import { Suspense } from "react";
 import { MasterAvatar } from "@/components/master-avatar";
 import { CancelBookingButton } from "@/components/public/booking/cancel-booking-button";
+import { CopyLinkButton } from "@/components/public/booking/copy-link-button";
 import { formatDuration } from "@/components/public/booking/format";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -36,7 +37,7 @@ const STATUS: Record<
   PENDING: {
     badge: "Ожидает подтверждения",
     title: "Заявка принята",
-    text: "Мастер подтвердит запись. Если что-то изменится, вам позвонят.",
+    text: "Мастер подтвердит запись — статус обновится на этой странице. Если время не подойдёт, салон позвонит.",
   },
   CONFIRMED: { badge: "Подтверждена", title: "Ждём вас" },
   COMPLETED: { badge: "Состоялась", title: "Спасибо за визит" },
@@ -166,6 +167,7 @@ async function BookingDetails({
               <CalendarPlus aria-hidden /> Добавить в календарь
             </a>
           </Button>
+          <CopyLinkButton />
           {cancellable && <CancelBookingButton token={token} />}
         </div>
       )}
@@ -177,8 +179,8 @@ async function BookingDetails({
       )}
       {active && (
         <p className="text-sm text-muted-foreground">
-          Сохраните эту страницу в закладки: по ссылке можно посмотреть или
-          отменить запись.
+          Сохраните ссылку на эту страницу — без неё запись не посмотреть и не
+          отменить. Она же есть в событии календаря.
           {env.TELEGRAM_CHANNEL_URL && (
             <>
               {" "}

@@ -41,6 +41,12 @@ describe("maskPhone", () => {
     expect(maskPhone("+380501234567")).toBe("+380 50 *** **67");
   });
 
+  it("hides short numbers that are written as one group", () => {
+    // Фолклендские острова и Токелау: весь номер — одна группа после кода страны
+    expect(maskPhone("+50051234")).toBe("+500 ***34");
+    expect(maskPhone("+6903010")).toBe("+690 **10");
+  });
+
   it("never shows more than the last two digits of the subscriber part", () => {
     const masked = maskPhone("+12025550143");
     expect(masked).toBe("+1 202 *** **43");

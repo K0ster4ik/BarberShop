@@ -87,7 +87,8 @@ export function MasterStep({
             <span className="flex min-w-0 flex-1 flex-col gap-1">
               <span className="font-medium">Любой мастер</span>
               <span className="text-sm text-muted-foreground">
-                Покажем всё свободное время и назначим мастера
+                Покажем время всех мастеров. Точную цену увидите, когда выберете
+                время
               </span>
               <span className="text-sm">
                 <span className="font-medium">

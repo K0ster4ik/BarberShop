@@ -6,29 +6,46 @@ import { formatNotification } from "./format";
 
 export const MAX_ATTEMPTS = 10;
 const BATCH = 20;
+const RETRY_BASE_MIN = 5;
+
+/**
+ * Пора ли (ещё раз) отправлять. Новое — сразу; после k неудач — не раньше чем через
+ * 5·(2^k − 1) минут после создания: 5, 15, 35… минут. Последняя, десятая, попытка —
+ * примерно через двое суток: сбой Telegram не сжигает все попытки за час.
+ */
+export function isDue(
+  notification: { attempts: number; createdAt: Date },
+  now: Date,
+): boolean {
+  const waitMin = RETRY_BASE_MIN * (2 ** notification.attempts - 1);
+  return now.getTime() >= notification.createdAt.getTime() + waitMin * 60_000;
+}
 
 export type SendMessage = (text: string) => Promise<void>;
 
 /**
- * Отправляет неотправленные уведомления (или только `ids`). Каждое — в своей транзакции
- * с блокировкой строки: если одновременно работают отправка после записи и cron,
- * второй пропустит уже взятое (SKIP LOCKED), и сообщение не уйдёт дважды.
+ * Отправляет уведомления, которым пора (или только `ids` — сразу после записи).
+ * Каждое — в своей транзакции с блокировкой строки: если одновременно работают отправка
+ * после записи и cron, второй пропустит уже взятое (SKIP LOCKED), и сообщение не уйдёт дважды.
  */
 export async function deliverNotifications(
   db: PrismaClient,
   send: SendMessage,
-  options: { ids?: readonly string[] } = {},
+  options: { ids?: readonly string[]; now?: Date } = {},
 ): Promise<{ sent: number; failed: number }> {
-  const pending = await db.notification.findMany({
+  const now = options.now ?? new Date();
+  const candidates = await db.notification.findMany({
     where: {
       sentAt: null,
       attempts: { lt: MAX_ATTEMPTS },
       ...(options.ids ? { id: { in: [...options.ids] } } : {}),
     },
     orderBy: { createdAt: "asc" },
-    take: BATCH,
-    select: { id: true },
+    select: { id: true, attempts: true, createdAt: true },
   });
+  const pending = candidates
+    .filter((notification) => isDue(notification, now))
+    .slice(0, BATCH);
 
   let sent = 0;
   let failed = 0;
