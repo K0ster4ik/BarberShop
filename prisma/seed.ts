@@ -13,6 +13,7 @@ const env = z
     DEMO_OWNER_PASSWORD: z.string().min(8),
     DEMO_ADMIN_PASSWORD: z.string().min(8),
     DEMO_MASTER_PASSWORD: z.string().min(8),
+    UPLOADS_DIR: z.string().min(1).default("uploads"),
   })
   .parse(process.env);
 
@@ -28,6 +29,7 @@ async function main() {
         admin: env.DEMO_ADMIN_PASSWORD,
         master: env.DEMO_MASTER_PASSWORD,
       },
+      uploadsDir: env.UPLOADS_DIR,
     });
     console.log(
       `Demo data ready in ${Date.now() - startedAt} ms: ` +

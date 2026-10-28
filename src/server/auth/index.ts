@@ -1,6 +1,7 @@
 import "server-only";
 import { headers } from "next/headers";
 import { forbidden, redirect } from "next/navigation";
+import { connection } from "next/server";
 import { env } from "@/env";
 import type { Role } from "@/generated/prisma/enums";
 import { db } from "@/server/db";
@@ -44,6 +45,11 @@ export async function getCurrentStaff(): Promise<StaffUser | null> {
 export async function requireRole(
   ...roles: readonly Role[]
 ): Promise<StaffUser> {
+  // Всё, что за проверкой роли, зависит от сессии и рендерится в момент запроса.
+  // connection() говорит об этом Next.js явно: иначе чтение БД (Prisma внутри
+  // вызывает crypto.getRandomValues) и new Date() после закэшированной сессии
+  // считались бы «нестабильными значениями при пререндере».
+  await connection();
   const staff = await getCurrentStaff();
   if (!staff) redirect(LOGIN_PATH);
   if (!canAccess(staff, roles)) forbidden();

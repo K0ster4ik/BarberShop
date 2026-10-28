@@ -171,7 +171,7 @@ export function generateDemoData(options: {
     name: def.name,
     title: def.title,
     bio: def.bio,
-    photoPath: null,
+    photoPath: `masters/${def.photo}`,
     isActive: true,
     sortOrder: index,
     createdAt: at(-400, 600),

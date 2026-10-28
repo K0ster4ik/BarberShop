@@ -46,3 +46,6 @@ next-env.d.ts
 
 # журналы запусков Codex (scripts/codex/run.mjs)
 /.codex-runs/
+
+# загруженные файлы (UPLOADS_DIR), в продакшене — Docker volume
+/uploads/

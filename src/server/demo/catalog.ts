@@ -157,6 +157,8 @@ type MasterDef = {
   name: string;
   title: string;
   bio: string;
+  /** Файл в prisma/seed-assets/masters/ — сброс демо копирует его в загрузки. */
+  photo: string;
   userKey?: DemoUserKey;
   /** weekday (0 = Пн) → рабочие интервалы */
   schedule: Partial<Record<number, readonly Interval[]>>;
@@ -191,6 +193,7 @@ export const MASTERS = [
     name: "Артём Соколов",
     title: "Топ-барбер",
     bio: "8 лет в профессии. Классические и сложные мужские стрижки, бритьё опасной бритвой.",
+    photo: "master-artem-sokolov.webp",
     userKey: "master",
     schedule: {
       1: fullShiftWithBreak,
@@ -214,6 +217,7 @@ export const MASTERS = [
     name: "Дмитрий Волков",
     title: "Барбер",
     bio: "Быстрые аккуратные стрижки и работа с бородой. Отлично ладит с детьми.",
+    photo: "master-dmitry-volkov.webp",
     schedule: {
       0: [
         [h(11), h(15)],
@@ -260,6 +264,7 @@ export const MASTERS = [
     name: "Максим Орлов",
     title: "Барбер",
     bio: "Фейды, текстурные стрижки и длинные волосы. Работает длинными сменами.",
+    photo: "master-maxim-orlov.webp",
     schedule: {
       0: [
         [h(10), h(15)],
@@ -293,6 +298,7 @@ export const MASTERS = [
     name: "Алина Ким",
     title: "Барбер-колорист",
     bio: "Камуфляж седины и тонирование бороды, мужские стрижки.",
+    photo: "master-alina-kim.webp",
     schedule: {
       3: [[h(12), h(20)]],
       4: [[h(12), h(20)]],

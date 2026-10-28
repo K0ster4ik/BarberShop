@@ -26,6 +26,9 @@ export const ROLE_LABELS: Record<Role, string> = {
 const ALL_STAFF = ["OWNER", "ADMIN", "MASTER"] as const;
 const MANAGERS = ["OWNER", "ADMIN"] as const;
 
+/** Управляют справочниками целиком: профили мастеров, услуги, промокоды. */
+export const MANAGER_ROLES = MANAGERS;
+
 /** Кто открывает разделы админки. Используют и меню, и сами страницы. */
 export const SECTION_ROLES = {
   today: ALL_STAFF,

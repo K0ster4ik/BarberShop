@@ -1,7 +1,12 @@
+import { copyFile, mkdir } from "node:fs/promises";
+import path from "node:path";
 import { hashPassword } from "better-auth/crypto";
 import type { Prisma, PrismaClient } from "@/generated/prisma/client";
+import { pruneMasterPhotos, resolveUploadPath } from "@/server/uploads";
 import { DEMO_USER_IDS, DEMO_USERS, type DemoUserKey } from "./catalog";
 import { generateDemoData } from "./generate";
+
+const SEED_ASSETS_DIR = path.join(process.cwd(), "prisma", "seed-assets");
 
 // Сброс демо (DESIGN.md, раздел 13). Используется сидом и cron-эндпоинтом.
 // Модуль не импортирует `server-only` и `@/server/db`, чтобы его мог запускать сид через tsx;
@@ -38,13 +43,31 @@ export async function clearBusinessData(
 }
 
 /**
+ * Кладёт фото демо-мастеров в папку загрузок и удаляет файлы, на которые
+ * больше никто не ссылается (фото, загруженные посетителями демо).
+ */
+async function syncDemoUploads(
+  uploadsDir: string,
+  photoPaths: readonly string[],
+): Promise<void> {
+  for (const relative of photoPaths) {
+    const target = resolveUploadPath(uploadsDir, relative);
+    if (!target) throw new Error(`Unsafe demo photo path: ${relative}`);
+    await mkdir(path.dirname(target), { recursive: true });
+    await copyFile(path.join(SEED_ASSETS_DIR, relative), target);
+  }
+  await pruneMasterPhotos(uploadsDir, new Set(photoPaths));
+}
+
+/**
  * Возвращает БД к исходному демо-состоянию за одну транзакцию: пока она идёт,
  * читатели видят старые данные. Демо-пользователи пересоздаются с теми же ID,
  * поэтому их сессии переживают сброс; остальные пользователи удаляются.
+ * С `uploadsDir` заодно приводит в порядок фото мастеров на диске.
  */
 export async function resetDemoData(
   db: PrismaClient,
-  options: { passwords: DemoPasswords; now?: Date },
+  options: { passwords: DemoPasswords; now?: Date; uploadsDir?: string },
 ): Promise<DemoResetSummary> {
   const data = generateDemoData({ now: options.now ?? new Date() });
 
@@ -115,6 +138,13 @@ export async function resetDemoData(
     },
     { maxWait: 10_000, timeout: 120_000 },
   );
+
+  if (options.uploadsDir) {
+    const photoPaths = data.masters.flatMap((master) =>
+      master.photoPath ? [master.photoPath] : [],
+    );
+    await syncDemoUploads(options.uploadsDir, photoPaths);
+  }
 
   return {
     clients: data.clients.length,

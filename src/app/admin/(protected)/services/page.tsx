@@ -1,11 +1,24 @@
 import type { Metadata } from "next";
-import { ComingSoon } from "@/components/admin/coming-soon";
+import { Suspense } from "react";
+import { PageSkeleton } from "@/components/admin/page-skeleton";
+import { ServicesView } from "@/components/admin/services/services-view";
 import { requireRole } from "@/server/auth";
 import { SECTION_ROLES } from "@/server/auth/access";
+import { listCatalog } from "@/server/catalog/service";
+import { db } from "@/server/db";
 
 export const metadata: Metadata = { title: "Услуги" };
 
-export default async function ServicesPage() {
+export default function ServicesPage() {
+  return (
+    <Suspense fallback={<PageSkeleton />}>
+      <Services />
+    </Suspense>
+  );
+}
+
+async function Services() {
   await requireRole(...SECTION_ROLES.services);
-  return <ComingSoon title="Услуги" stage={4} />;
+  const categories = await listCatalog(db);
+  return <ServicesView categories={categories} />;
 }

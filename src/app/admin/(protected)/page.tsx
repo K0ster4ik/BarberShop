@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { connection } from "next/server";
+import { Suspense } from "react";
+import { PageSkeleton } from "@/components/admin/page-skeleton";
 import { Badge } from "@/components/ui/badge";
 import { requireRole } from "@/server/auth";
 import { ROLE_LABELS, SECTION_ROLES } from "@/server/auth/access";
@@ -8,11 +9,17 @@ import { countTodayBookings } from "@/server/bookings/queries";
 export const metadata: Metadata = { title: "Сегодня" };
 
 // Временная версия экрана «Сегодня»: полный экран собирается на этапе 7.
-export default async function TodayPage() {
+export default function TodayPage() {
+  return (
+    <Suspense fallback={<PageSkeleton />}>
+      <Today />
+    </Suspense>
+  );
+}
+
+async function Today() {
+  // requireRole переводит рендер на момент запроса, поэтому new Date() здесь безопасен.
   const staff = await requireRole(...SECTION_ROLES.today);
-  // «Сегодня» зависит от момента запроса: без connection() Next.js попытался бы
-  // зафиксировать new Date() при пререндере.
-  await connection();
   const bookingsToday = await countTodayBookings(staff, new Date());
 
   return (

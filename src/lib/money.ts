@@ -42,6 +42,14 @@ export function roundDiscountUp(kopecks: number): number {
   return Math.ceil(kopecks / 100) * 100;
 }
 
+/** Скидка для показа: «−20%» или «−300 ₽». value — проценты или копейки. */
+export function formatDiscount(
+  kind: "PERCENT" | "AMOUNT",
+  value: number,
+): string {
+  return kind === "PERCENT" ? `−${value}%` : `−${formatMoney(value)}`;
+}
+
 /** Копейки → рубли для полей ввода. */
 export function kopecksToRubles(kopecks: number): number {
   assertKopecks(kopecks);

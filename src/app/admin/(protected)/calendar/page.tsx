@@ -1,11 +1,18 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { ComingSoon } from "@/components/admin/coming-soon";
-import { requireRole } from "@/server/auth";
+import { PageSkeleton } from "@/components/admin/page-skeleton";
+import { RoleGate } from "@/components/admin/role-gate";
 import { SECTION_ROLES } from "@/server/auth/access";
 
 export const metadata: Metadata = { title: "Календарь" };
 
-export default async function CalendarPage() {
-  await requireRole(...SECTION_ROLES.calendar);
-  return <ComingSoon title="Календарь" stage={7} />;
+export default function CalendarPage() {
+  return (
+    <Suspense fallback={<PageSkeleton />}>
+      <RoleGate roles={SECTION_ROLES.calendar}>
+        <ComingSoon title="Календарь" stage={7} />
+      </RoleGate>
+    </Suspense>
+  );
 }

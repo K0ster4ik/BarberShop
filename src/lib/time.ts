@@ -69,6 +69,47 @@ export function salonTimeToInstant(
   return fromZonedTime(`${addDays(date, dayOffset)}T${hh}:${mm}:00`, timeZone);
 }
 
+/** 615 → «10:15», 1440 → «24:00» (конец суток в графике). */
+export function minutesToTime(minutes: number): string {
+  const hh = String(Math.floor(minutes / 60)).padStart(2, "0");
+  const mm = String(minutes % 60).padStart(2, "0");
+  return `${hh}:${mm}`;
+}
+
+/** «10:15» → 615; допускается «24:00» как конец суток. null — если формат неверный. */
+export function timeToMinutes(time: string): number | null {
+  const match = /^(\d{2}):(\d{2})$/.exec(time);
+  if (!match) return null;
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  if (minutes > 59 || hours > 24 || (hours === 24 && minutes > 0)) return null;
+  return hours * 60 + minutes;
+}
+
+const dateFormat = new Intl.DateTimeFormat("ru-RU", {
+  timeZone: salon.timezone,
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+});
+const dateTimeFormat = new Intl.DateTimeFormat("ru-RU", {
+  timeZone: salon.timezone,
+  day: "numeric",
+  month: "short",
+  hour: "2-digit",
+  minute: "2-digit",
+});
+
+/** «3 ноября 2026 г.» по часам салона. */
+export function formatSalonDate(instant: Date): string {
+  return dateFormat.format(instant);
+}
+
+/** «3 нояб., 10:00» по часам салона. */
+export function formatSalonDateTime(instant: Date): string {
+  return dateTimeFormat.format(instant);
+}
+
 export function addMinutes(instant: Date, minutes: number): Date {
   return new Date(instant.getTime() + minutes * 60_000);
 }
