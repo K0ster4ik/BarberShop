@@ -6,9 +6,13 @@ import sharp from "sharp";
 // Хранилище загруженных файлов (фото мастеров). В продакшене папка — Docker volume.
 // Модуль без `server-only`: его использует и сброс демо, который запускается через tsx.
 
+// Сохранённое фото — исходник для next/image, а не то, что скачивает посетитель:
+// оптимизатор отдаёт уменьшенные копии нужной ширины. Поэтому храним крупно и почти
+// без потерь — иначе к сжатию next/image добавляется второе, и портрет «мылится».
 export const MASTER_PHOTO = {
-  width: 800,
-  height: 1000,
+  width: 1200,
+  height: 1500,
+  quality: 90,
   maxBytes: 5 * 1024 * 1024,
   types: ["image/jpeg", "image/png", "image/webp"],
 } as const;
@@ -33,23 +37,41 @@ export function resolveUploadPath(
 }
 
 /**
- * Приводит фото мастера к 800×1000 WebP и сохраняет под новым именем.
+ * Фото мастера → WebP 4:5: самый крупный кадр 4:5, какой есть в снимке, но не больше
+ * 1200×1500. Маленькие снимки не растягиваем — деталей от этого не прибавится.
  * sharp поворачивает по EXIF и не переносит метаданные (в том числе GPS).
  * Бросает ошибку, если файл не декодируется как изображение.
  */
+export async function encodeMasterPhoto(input: Buffer): Promise<Buffer> {
+  const image = sharp(input, { failOn: "error" });
+  const { autoOrient } = await image.metadata();
+  const unit = Math.max(
+    1,
+    Math.floor(
+      Math.min(
+        MASTER_PHOTO.width / 4,
+        autoOrient.width / 4,
+        autoOrient.height / 5,
+      ),
+    ),
+  );
+  return (
+    image
+      .rotate()
+      .resize(unit * 4, unit * 5, { fit: "cover", position: "attention" })
+      // smartSubsample бережёт мелкие цветные детали: бороду, кожу, кожаный фартук.
+      .webp({ quality: MASTER_PHOTO.quality, smartSubsample: true })
+      .toBuffer()
+  );
+}
+
+/** Сохраняет фото мастера под новым именем: файлы раздаются как immutable. */
 export async function saveMasterPhoto(
   uploadsDir: string,
   masterId: string,
   input: Buffer,
 ): Promise<string> {
-  const output = await sharp(input, { failOn: "error" })
-    .rotate()
-    .resize(MASTER_PHOTO.width, MASTER_PHOTO.height, {
-      fit: "cover",
-      position: "attention",
-    })
-    .webp({ quality: 80 })
-    .toBuffer();
+  const output = await encodeMasterPhoto(input);
 
   const relative = `${MASTERS_FOLDER}/${masterId}-${randomBytes(4).toString("hex")}.webp`;
   const full = resolveUploadPath(uploadsDir, relative);

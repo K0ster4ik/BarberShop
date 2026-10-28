@@ -14,7 +14,7 @@ any image can be regenerated later.
 Decide before generating:
 
 - **purpose and place** — where it is shown and at what size;
-- **format** — master portrait 4:5 (800×1000), hero 16:9 (1920×1080), Open Graph 1200×630,
+- **format** — master portrait 4:5 (Codex's native ~1120×1400), hero 16:9 (1920×1080), Open Graph 1200×630,
   square icon 512×512;
 - **destination** — `public/images/<group>/` for the site, `prisma/seed-assets/` for demo data;
 - **file name** — lowercase, hyphenated, meaningful (`master-artem-sokolov.webp`).
@@ -34,13 +34,24 @@ otherwise may describe the image instead of saving it:
 ```text
 Сгенерируй изображение встроенным инструментом генерации изображений.
 <описание по брифу и стилю>
-Сохрани результат в текущую рабочую папку как <name>.webp в размере <W×H>, качество около 80.
+Сохрани результат в текущую рабочую папку как <name>.png в исходном размере, без пересжатия.
 Не создавай других файлов.
 ```
 
-Ask for WebP (or JPEG for photos) up front: Codex resizes and converts the result itself, while a
-PNG portrait at 800×1000 comes out around 2 MB — too heavy for the site. The untouched original
-stays in `~/.codex/generated_images/<session>/` in case a different crop is needed later.
+Let Codex keep the PNG at full resolution and do the lossy encoding once, yourself. An earlier
+version of this skill asked Codex for an 800×1000 WebP at quality 80; `next/image` then compressed
+it a second time and large portraits looked smeared. The untouched original also stays in
+`~/.codex/generated_images/<session>/`. Encode master portraits with the project script, which
+matches the CRM upload pipeline (WebP 4:5, quality 90, at most 1200×1500) and puts a content hash
+in the file name:
+
+```bash
+npx tsx scripts/encode-seed-photo.ts <original.png> master-<name>
+```
+
+The hash matters because `/uploads` is served as immutable: a new picture under an old name would
+keep showing the old one in browsers and in the `next/image` cache. For other image types, encode
+once with sharp at quality ~90 and keep files under ~400 KB.
 
 ```bash
 node scripts/codex/run.mjs exec --name img-<slug> --sandbox workspace-write \
@@ -69,10 +80,11 @@ rounds without success, stop and show the user the best options instead of spend
 
 ## 4. Place and record
 
-- Copy the chosen image to its destination. Ask Codex for the target size up front so files stay
-  reasonable (photos under ~400 KB); Next.js `<Image>` serves optimised variants at runtime.
-- Add a line to `public/images/README.md` (create it if missing): file, purpose, short prompt,
-  session id, date. This is what makes regeneration possible.
+- Put the encoded image (step 2) at its destination. Next.js `<Image>` serves resized variants at
+  runtime, so the stored file is a high-quality source, not what visitors download.
+- Add a line to the manifest — `prisma/seed-assets/README.md` for demo data, `public/images/README.md`
+  for the site (create it if missing): file, purpose, short prompt, session id, date. This is what
+  makes regeneration possible.
 - In the report, list the images with paths and note that they are AI-generated with fictional
   people.
 

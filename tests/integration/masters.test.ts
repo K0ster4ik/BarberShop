@@ -215,7 +215,7 @@ describe("schedule and time off", () => {
 });
 
 describe("master photo", () => {
-  it("converts the upload to an 800×1000 WebP and removes the old file", async () => {
+  it("converts the upload to a 4:5 WebP and removes the old file", async () => {
     const before = await db.master.findUniqueOrThrow({
       where: { id: ownMasterId },
     });
@@ -233,9 +233,39 @@ describe("master photo", () => {
     const stored = await sharp(
       await readFile(path.join(uploadsDir, photoPath)),
     ).metadata();
-    expect(stored).toMatchObject({ format: "webp", width: 800, height: 1000 });
+    // Самый крупный кадр 4:5 внутри 1600×900 — без растягивания
+    expect(stored).toMatchObject({ format: "webp", width: 720, height: 900 });
     const files = await readdir(path.join(uploadsDir, "masters"));
     expect(files).not.toContain(path.basename(before.photoPath ?? "missing"));
+  });
+
+  it("caps large photos at 1200×1500 and honours EXIF rotation", async () => {
+    const size = async (input: Buffer) => {
+      const photoPath = await setMasterPhoto(
+        db,
+        uploadsDir,
+        ownMasterId,
+        input,
+      );
+      const { width, height } = await sharp(
+        await readFile(path.join(uploadsDir, photoPath)),
+      ).metadata();
+      return `${width}×${height}`;
+    };
+    const image = (width: number, height: number) =>
+      sharp({
+        create: { width, height, channels: 3, background: "#884422" },
+      });
+
+    expect(await size(await image(3000, 4000).jpeg().toBuffer())).toBe(
+      "1200×1500",
+    );
+    // Снимок с телефона: пиксели лежат боком, а EXIF велит повернуть — это портрет 1000×2000
+    const sideways = await image(2000, 1000)
+      .jpeg()
+      .withMetadata({ orientation: 6 })
+      .toBuffer();
+    expect(await size(sideways)).toBe("1000×1250");
   });
 
   it("rejects a file that is not an image", async () => {
