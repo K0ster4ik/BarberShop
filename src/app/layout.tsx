@@ -1,10 +1,16 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Playfair_Display } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
 const geistSans = Geist({
   variable: "--font-sans",
+  subsets: ["latin", "cyrillic"],
+});
+
+// Заголовки сайта (класс font-display); админка остаётся на Geist.
+const playfair = Playfair_Display({
+  variable: "--font-playfair",
   subsets: ["latin", "cyrillic"],
 });
 
@@ -24,7 +30,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html
       lang="ru"
       suppressHydrationWarning
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${playfair.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col">
         {children}
