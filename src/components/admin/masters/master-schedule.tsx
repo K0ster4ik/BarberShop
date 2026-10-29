@@ -38,7 +38,7 @@ const DAYS = [
   "Суббота",
   "Воскресенье",
 ];
-// В меню «Скопировать на…»: «на вторник», «на среду».
+// В меню «Копировать на…»: «на вторник», «на среду».
 const DAYS_ACCUSATIVE = [
   "понедельник",
   "вторник",
@@ -187,7 +187,8 @@ function DayRow({
           </div>
         ))}
       </div>
-      <div className="flex flex-wrap gap-2 sm:flex-col">
+      {/* На широком экране кнопки в ряд: выходной не растягивается на две строки. */}
+      <div className="flex flex-wrap gap-2 sm:flex-col xl:flex-row">
         <Button
           type="button"
           variant="outline"
@@ -205,7 +206,7 @@ function DayRow({
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button type="button" variant="ghost">
-              <Copy aria-hidden /> Скопировать
+              <Copy aria-hidden /> Копировать на…
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start">

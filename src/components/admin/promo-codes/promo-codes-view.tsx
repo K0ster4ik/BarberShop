@@ -16,6 +16,7 @@ import { submitAction } from "@/components/forms/submit";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { FieldGroup } from "@/components/ui/field";
+import { cn } from "@/lib/utils";
 import {
   type PromoCodeInput,
   promoCodeSchema,
@@ -75,7 +76,13 @@ export function PromoCodesView({ codes }: { codes: PromoCodeItem[] }) {
           {codes.map((code) => (
             <li key={code.id} className="flex items-center gap-3 p-3">
               <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
+                {/* Неработающий код приглушён, чтобы при беглом просмотре не спутать его с действующим. */}
+                <div
+                  className={cn(
+                    "flex flex-wrap items-center gap-2",
+                    code.status !== "active" && "text-muted-foreground",
+                  )}
+                >
                   <span className="font-mono font-medium">{code.code}</span>
                   <span className="font-medium">{code.discount}</span>
                   <Badge variant={STATUS[code.status].variant}>
