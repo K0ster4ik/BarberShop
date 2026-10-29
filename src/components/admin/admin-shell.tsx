@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { Skeleton } from "@/components/ui/skeleton";
 import { requireRole } from "@/server/auth";
 import { ROLE_LABELS, SECTION_ROLES } from "@/server/auth/access";
@@ -19,6 +20,7 @@ export async function AdminShell({ children }: { children: ReactNode }) {
         <>
           <MobileNav items={items} />
           <div className="flex-1" />
+          <ThemeToggle />
           <UserMenu
             name={staff.name}
             email={staff.email}
@@ -65,9 +67,12 @@ function ShellFrame({
 }) {
   return (
     <div className="flex min-h-svh flex-1">
-      <aside className="hidden w-60 shrink-0 flex-col border-r bg-sidebar md:flex">
-        <div className="flex h-14 items-center border-b px-5 font-semibold">
-          Барбершоп · CRM
+      {/* Меню графитовое в обеих темах (docs/design/crm-concept-*.webp). */}
+      <aside className="hidden w-60 shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground md:flex">
+        <div className="flex h-14 items-center border-b border-sidebar-border px-5">
+          <span className="font-display text-base font-semibold tracking-[0.14em] text-sidebar-primary uppercase">
+            Барбершоп · CRM
+          </span>
         </div>
         {nav}
       </aside>

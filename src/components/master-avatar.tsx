@@ -7,11 +7,13 @@ export function MasterAvatar({
   photoPath,
   className,
   sizes = "160px",
+  preload = false,
 }: {
   name: string;
   photoPath: string | null;
   className?: string;
   sizes?: string;
+  preload?: boolean; // фото на первом экране — грузить сразу
 }) {
   const initials = name
     .split(/\s+/)
@@ -32,6 +34,7 @@ export function MasterAvatar({
           alt={`Фото: ${name}`}
           fill
           sizes={sizes}
+          preload={preload}
           className="object-cover"
         />
       ) : (

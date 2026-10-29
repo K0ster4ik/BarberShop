@@ -50,7 +50,7 @@ async function Masters() {
         actions={<NewMasterButton />}
       />
       <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-        {masters.map((master) => (
+        {masters.map((master, index) => (
           <li key={master.id}>
             <Link
               href={`/admin/masters/${master.id}`}
@@ -59,6 +59,7 @@ async function Masters() {
               <MasterAvatar
                 name={master.name}
                 photoPath={master.photoPath}
+                preload={index === 0}
                 sizes={CARD_SIZES}
                 className={master.isActive ? undefined : "opacity-60 grayscale"}
               />

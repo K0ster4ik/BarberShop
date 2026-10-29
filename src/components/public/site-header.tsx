@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { BookButton } from "./book-button";
-import { ThemeToggle } from "./theme-toggle";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 const NAV = [
   { href: "/#services", label: "Услуги" },

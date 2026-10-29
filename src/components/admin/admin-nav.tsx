@@ -54,11 +54,12 @@ export function AdminNav({
             onClick={onNavigate}
             aria-current={active ? "page" : undefined}
             className={cn(
-              "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
-              // Текущий раздел должен читаться с первого взгляда, а не по едва заметной подложке.
+              "relative flex min-h-10 items-center gap-3 rounded-md px-3 text-sm transition-colors outline-none focus-visible:ring-3 focus-visible:ring-sidebar-ring/50",
+              // Текущий раздел: латунный текст и полоска слева. Подложка — графитовая:
+              // на латунной латунный текст не набирает контраст 4,5:1.
               active
-                ? "bg-sidebar-primary font-medium text-sidebar-primary-foreground"
-                : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground",
+                ? "bg-sidebar-accent font-medium text-sidebar-primary before:absolute before:inset-y-2 before:left-0 before:w-0.5 before:rounded-full before:bg-sidebar-primary"
+                : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
             )}
           >
             <Icon className="size-4 shrink-0" aria-hidden />

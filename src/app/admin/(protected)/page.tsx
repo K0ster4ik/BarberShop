@@ -25,7 +25,7 @@ async function Today() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center gap-3">
-        <h1 className="text-2xl font-semibold tracking-tight">
+        <h1 className="font-display text-3xl font-semibold tracking-tight">
           Здравствуйте, {staff.name.split(" ")[0]}
         </h1>
         <Badge variant="secondary">{ROLE_LABELS[staff.role]}</Badge>

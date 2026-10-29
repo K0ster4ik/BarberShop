@@ -2,8 +2,8 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-/* Тёмная тема — только у сайта: next-themes ставит data-theme на <html>.
-   Админка всегда светлая (data-theme="admin"), см. src/components/theme-provider.tsx. */
+/* Темы сайта и CRM: next-themes ставит data-theme="light" | "dark" на <html>
+   (src/components/theme-provider.tsx). */
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
 @theme inline {
@@ -51,45 +51,9 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-:root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  /* Граница полей ввода: контраст с белым фоном ≥ 3:1 (WCAG 1.4.11),
-     у значения по умолчанию из shadcn было около 1.2:1. */
-  --input: oklch(0.66 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
-}
-
-/* Сайт: «Тёмный премиум» и его светлая вариация (docs/design/booking-concept-*.webp).
-   Контраст проверен по WCAG AA: текст от 5,6:1, рамки полей от 3,1:1. */
+/* «Тёмный премиум» и его светлая вариация (docs/design/*-concept-*.webp) — для сайта и CRM.
+   Контраст проверен по WCAG AA: текст от 5,6:1, рамки полей от 3,1:1, меню CRM от 7:1. */
+:root,
 [data-theme="light"] {
   --background: oklch(0.968 0.012 80);
   --foreground: oklch(0.24 0.015 60);
@@ -109,6 +73,21 @@
   --border: oklch(0.87 0.02 75);
   --input: oklch(0.62 0.03 70);
   --ring: oklch(0.6 0.1 70);
+  --chart-1: oklch(0.6 0.1 70);
+  --chart-2: oklch(0.45 0.06 160);
+  --chart-3: oklch(0.55 0.08 30);
+  --chart-4: oklch(0.4 0.03 250);
+  --chart-5: oklch(0.7 0.08 90);
+  --radius: 0.625rem;
+  /* Меню CRM графитовое в обеих темах (docs/design/crm-concept-*.webp). */
+  --sidebar: oklch(0.2 0.007 250);
+  --sidebar-foreground: oklch(0.9 0.012 80);
+  --sidebar-primary: oklch(0.78 0.12 78);
+  --sidebar-primary-foreground: oklch(0.2 0.01 60);
+  --sidebar-accent: oklch(0.27 0.01 250);
+  --sidebar-accent-foreground: oklch(0.95 0.01 80);
+  --sidebar-border: oklch(0.3 0.008 250);
+  --sidebar-ring: oklch(0.78 0.12 78);
 }
 
 [data-theme="dark"] {
@@ -131,6 +110,14 @@
   --input: oklch(0.52 0.01 250);
   --ring: oklch(0.78 0.12 78);
   color-scheme: dark;
+  --chart-1: oklch(0.78 0.12 78);
+  --chart-2: oklch(0.65 0.08 160);
+  --chart-3: oklch(0.68 0.1 30);
+  --chart-4: oklch(0.6 0.03 250);
+  --chart-5: oklch(0.85 0.06 90);
+  --sidebar: oklch(0.16 0.006 250);
+  --sidebar-accent: oklch(0.24 0.008 250);
+  --sidebar-border: oklch(0.26 0.008 250);
 }
 
 @layer base {

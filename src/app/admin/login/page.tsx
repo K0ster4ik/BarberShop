@@ -20,10 +20,13 @@ export const metadata: Metadata = {
 
 export default function LoginPage({ searchParams }: PageProps<"/admin/login">) {
   return (
-    <main className="flex flex-1 items-center justify-center p-4">
+    <main className="flex flex-1 flex-col items-center justify-center gap-6 p-4">
+      <p className="font-display text-lg font-semibold tracking-[0.14em] text-primary uppercase">
+        Барбершоп · CRM
+      </p>
       <Card className="w-full max-w-sm">
         <CardHeader>
-          <CardTitle className="text-xl">Вход в CRM</CardTitle>
+          <CardTitle className="font-display text-2xl">Вход в CRM</CardTitle>
           <CardDescription>
             Для сотрудников барбершопа. Доступ к демо выдаётся по запросу.
           </CardDescription>
