@@ -11,6 +11,7 @@ import {
   type CatalogService,
   loadBookingCatalog,
   loadOffers,
+  offerPrice,
 } from "@/server/bookings/offer";
 import type { Db } from "@/server/errors";
 
@@ -47,6 +48,9 @@ export type MasterCard = {
   name: string;
   title: string | null;
   photoPath: string | null;
+  // Не делает услугу — не «всё занято»: на карточке нет ни цены, ни времени.
+  offersService: boolean;
+  price: number | null; // цена мастера на услугу с действующими акциями
   nearest: { date: string; time: string; label: string } | null;
 };
 
@@ -64,8 +68,8 @@ export async function loadMasterCards(
     orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
     select: { id: true, name: true, title: true, photoPath: true },
   });
-  if (!serviceId)
-    return masters.map((master) => ({ ...master, nearest: null }));
+  const none = { offersService: false, price: null, nearest: null };
+  if (!serviceId) return masters.map((master) => ({ ...master, ...none }));
 
   const offers = await loadOffers(db, [serviceId]);
   const today = toSalonDate(now);
@@ -88,10 +92,16 @@ export async function loadMasterCards(
     }
     return null;
   };
-  return masters.map((master) => ({
-    ...master,
-    nearest: nearestOf(master.id),
-  }));
+  return masters.map((master) => {
+    const offer = offers.find((row) => row.master.id === master.id);
+    if (!offer) return { ...master, ...none };
+    return {
+      ...master,
+      offersService: true,
+      price: offerPrice(offer, now).subtotal,
+      nearest: nearestOf(master.id),
+    };
+  });
 }
 
 /** «сегодня 17:30», «завтра 10:00», иначе «пт, 31 октября в 10:00». */

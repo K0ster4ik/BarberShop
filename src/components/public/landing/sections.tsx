@@ -45,7 +45,7 @@ export function Section({
 }) {
   return (
     <section id={id} className="scroll-mt-6">
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-12 md:py-16">
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-8 md:py-12">
         <div className="flex items-end justify-between gap-4">
           <h2 className="font-display text-3xl font-semibold sm:text-4xl">
             {title}
@@ -53,7 +53,7 @@ export function Section({
           {link && (
             <Link
               href={link.href}
-              className="flex shrink-0 items-center gap-1 text-sm text-primary underline-offset-4 hover:underline"
+              className="flex min-h-11 shrink-0 items-center gap-1 text-sm text-primary underline-offset-4 hover:underline"
             >
               {link.label} <ArrowRight className="size-4" aria-hidden />
             </Link>
@@ -79,44 +79,71 @@ function serviceIcon(service: FeaturedService) {
   );
 }
 
+const HERO_PRICE_CLASS = "mt-2 block min-h-7 font-medium text-white";
+
+/** Строка с ценой на первом экране: гость видит порядок цен, не листая вниз. */
+export async function HeroPrice() {
+  await connection();
+  const [first] = await featuredServices();
+  if (!first) return null;
+  return (
+    <span className={HERO_PRICE_CLASS}>
+      {first.name} — от {formatMoney(first.minPrice)}
+    </span>
+  );
+}
+
+export function HeroPriceSkeleton() {
+  return <span className={HERO_PRICE_CLASS} aria-hidden />;
+}
+
 /** Карточки услуг: нажатие открывает запись с этой услугой. */
 export async function ServicesGrid() {
   await connection();
   const services = await featuredServices();
   return (
-    <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-      {services.map((service) => {
-        const Icon = serviceIcon(service);
-        return (
-          <li key={service.id}>
-            <Link
-              href={wizardHref({ step: "master", serviceIds: [service.id] })}
-              className="group flex h-full items-center gap-4 rounded-xl border bg-card p-4 transition-colors outline-none hover:border-primary/60 focus-visible:ring-3 focus-visible:ring-ring/50"
-            >
-              <Icon className="size-7 shrink-0 text-primary" aria-hidden />
-              <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                <span className="font-medium">{service.name}</span>
-                <span className="text-sm text-muted-foreground">
-                  от{" "}
-                  <span className="font-medium text-foreground">
-                    {formatMoney(service.minPrice)}
+    <>
+      <p className="-mt-3 text-muted-foreground">
+        Нажмите на услугу — сразу перейдём к записи. Цена и длительность у
+        каждого мастера свои, точные увидите при выборе.
+      </p>
+      <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {services.map((service) => {
+          const Icon = serviceIcon(service);
+          return (
+            <li key={service.id}>
+              <Link
+                href={wizardHref({ step: "master", serviceIds: [service.id] })}
+                className="group flex h-full items-center gap-4 rounded-xl border bg-card p-4 transition-colors outline-none hover:border-primary/60 focus-visible:ring-3 focus-visible:ring-ring/50"
+              >
+                <Icon className="size-7 shrink-0 text-primary" aria-hidden />
+                <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                  <span className="font-medium">{service.name}</span>
+                  <span className="text-sm text-muted-foreground">
+                    от{" "}
+                    <span className="font-medium text-foreground">
+                      {formatMoney(service.minPrice)}
+                    </span>
+                    {" · "}
+                    {formatDurationRange(
+                      service.minDurationMin,
+                      service.maxDurationMin,
+                    )}
                   </span>
-                  {" · "}
-                  {formatDurationRange(
-                    service.minDurationMin,
-                    service.maxDurationMin,
-                  )}
                 </span>
-              </span>
-              <ChevronRight
-                className="size-5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
-                aria-hidden
-              />
-            </Link>
-          </li>
-        );
-      })}
-    </ul>
+                <span className="flex shrink-0 items-center gap-0.5 text-sm font-medium text-primary">
+                  Выбрать
+                  <ChevronRight
+                    className="size-4 transition-transform group-hover:translate-x-0.5"
+                    aria-hidden
+                  />
+                </span>
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+    </>
   );
 }
 
@@ -128,8 +155,8 @@ export async function MastersGrid() {
   return (
     <>
       {first && (
-        <p className="-mt-3 text-sm text-muted-foreground">
-          Ближайшее свободное время — на услугу «{first.name}».
+        <p className="-mt-3 text-muted-foreground">
+          Цена и ближайшее свободное время — на услугу «{first.name}».
         </p>
       )}
       <ul className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
@@ -149,28 +176,40 @@ export async function MastersGrid() {
                 <p className="font-medium">{master.name}</p>
                 <p className="text-sm text-muted-foreground">
                   {master.title ?? "Мастер"}
+                  {master.price !== null && (
+                    <span className="whitespace-nowrap">
+                      {" · "}
+                      {formatMoney(master.price)}
+                    </span>
+                  )}
                 </p>
               </div>
-              <p className="flex gap-2 text-sm">
-                <CalendarClock
-                  className="mt-0.5 size-4 shrink-0 text-primary"
-                  aria-hidden
-                />
-                {master.nearest ? (
-                  <span>
-                    <span className="text-muted-foreground">Ближайшее: </span>
-                    <span className="font-medium">{master.nearest.label}</span>
-                  </span>
-                ) : (
-                  <span className="text-muted-foreground">
-                    На неделе всё занято
-                  </span>
-                )}
-              </p>
+              {master.offersService && (
+                <p className="flex gap-2">
+                  <CalendarClock
+                    className="mt-1 size-4 shrink-0 text-primary"
+                    aria-hidden
+                  />
+                  {master.nearest ? (
+                    <span className="flex flex-col">
+                      <span className="font-semibold first-letter:uppercase">
+                        {master.nearest.label}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        ближайшее свободное
+                      </span>
+                    </span>
+                  ) : (
+                    <span className="text-sm text-muted-foreground">
+                      На этой неделе всё занято
+                    </span>
+                  )}
+                </p>
+              )}
               <Button asChild className="mt-auto h-11">
                 <Link
                   href={
-                    first
+                    first && master.offersService
                       ? wizardHref({
                           step: "time",
                           serviceIds: [first.id],
@@ -180,8 +219,8 @@ export async function MastersGrid() {
                       : "/book"
                   }
                 >
-                  Записаться
-                  <span className="sr-only"> к мастеру {master.name}</span>
+                  {master.offersService ? "Выбрать время" : "Выбрать услугу"}
+                  <span className="sr-only"> — {master.name}</span>
                 </Link>
               </Button>
             </div>

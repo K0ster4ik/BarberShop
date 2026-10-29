@@ -23,7 +23,7 @@ function BookButtonForPath() {
 
 function BookLink() {
   return (
-    <Button asChild size="lg">
+    <Button asChild size="lg" className="h-11 sm:h-9">
       <Link href="/book">Записаться</Link>
     </Button>
   );

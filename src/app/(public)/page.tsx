@@ -3,6 +3,8 @@ import { Suspense } from "react";
 import { Hero } from "@/components/public/landing/hero";
 import {
   CardsSkeleton,
+  HeroPrice,
+  HeroPriceSkeleton,
   HowToBook,
   MastersGrid,
   Section,
@@ -21,7 +23,11 @@ export const metadata: Metadata = {
 export default function HomePage() {
   return (
     <>
-      <Hero />
+      <Hero>
+        <Suspense fallback={<HeroPriceSkeleton />}>
+          <HeroPrice />
+        </Suspense>
+      </Hero>
       <Section
         id="services"
         title="Услуги"
