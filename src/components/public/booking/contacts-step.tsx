@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, ChevronDown, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useId, useRef, useState, useTransition } from "react";
 import { Controller, useForm } from "react-hook-form";
@@ -33,7 +33,11 @@ import { PriceBreakdown } from "./price-breakdown";
 import { SelectionSummary } from "./selection-summary";
 import { ANY_MASTER, wizardHref } from "./wizard-state";
 
-export type CountryOption = { code: string; label: string };
+export type CountryOption = {
+  code: string; // RU
+  name: string; // Россия
+  dialCode: string; // +7
+};
 
 const FORM_ID = "booking-contacts";
 
@@ -243,23 +247,46 @@ export function ContactsStep({
               <Controller
                 control={form.control}
                 name="country"
-                render={({ field }) => (
-                  <select
-                    {...field}
-                    aria-label="Страна"
-                    onChange={(event) => {
-                      field.onChange(event);
-                      onPhoneBlur();
-                    }}
-                    className="h-11 w-36 shrink-0 rounded-lg border border-input bg-transparent px-2 text-base outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm"
-                  >
-                    {countries.map((country) => (
-                      <option key={country.code} value={country.code}>
-                        {country.label}
-                      </option>
-                    ))}
-                  </select>
-                )}
+                render={({ field }) => {
+                  const selected = countries.find(
+                    (country) => country.code === field.value,
+                  );
+                  // Закрытый список браузер обрезает с конца, и у длинных названий
+                  // пропадал бы код. Поэтому видна своя подпись: название сжимается,
+                  // код — всегда целиком. Сам список остаётся обычным <select>.
+                  return (
+                    <div className="relative h-11 w-36 shrink-0 rounded-lg border border-input text-base focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50 md:text-sm dark:bg-input/30">
+                      <span
+                        className="pointer-events-none flex h-full items-center gap-1 pr-7 pl-2"
+                        aria-hidden
+                      >
+                        <span className="truncate">{selected?.name}</span>
+                        <span className="shrink-0 tabular-nums">
+                          {selected?.dialCode}
+                        </span>
+                      </span>
+                      <ChevronDown
+                        className="pointer-events-none absolute top-1/2 right-2 size-4 -translate-y-1/2 opacity-60"
+                        aria-hidden
+                      />
+                      <select
+                        {...field}
+                        aria-label="Страна"
+                        onChange={(event) => {
+                          field.onChange(event);
+                          onPhoneBlur();
+                        }}
+                        className="absolute inset-0 size-full cursor-pointer appearance-none opacity-0"
+                      >
+                        {countries.map((country) => (
+                          <option key={country.code} value={country.code}>
+                            {country.name} {country.dialCode}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  );
+                }}
               />
               <Controller
                 control={form.control}

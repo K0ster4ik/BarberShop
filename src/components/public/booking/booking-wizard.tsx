@@ -205,11 +205,12 @@ function countryOptions(): CountryOption[] {
   // «Россия +7»: название слева, код справа — список читается по названиям.
   const option = (code: (typeof FIRST)[number]) => ({
     code,
-    label: `${names.of(code) ?? code} +${getCountryCallingCode(code as never)}`,
+    name: names.of(code) ?? code,
+    dialCode: `+${getCountryCallingCode(code as never)}`,
   });
   const rest = getCountries()
     .filter((code) => !FIRST.includes(code))
     .map(option)
-    .sort((a, b) => a.label.localeCompare(b.label, "ru"));
+    .sort((a, b) => a.name.localeCompare(b.name, "ru"));
   return [...FIRST.map(option), ...rest];
 }
