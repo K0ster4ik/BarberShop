@@ -52,7 +52,7 @@
 }
 
 /* «Тёмный премиум» и его светлая вариация (docs/design/*-concept-*.webp) — для сайта и CRM.
-   Контраст проверен по WCAG AA: текст от 5,6:1, рамки полей от 3,1:1, меню CRM от 7:1. */
+   Контраст проверен по WCAG AA: текст от 5,6:1, рамки полей от 3,1:1, меню CRM от 5,6:1. */
 :root,
 [data-theme="light"] {
   --background: oklch(0.968 0.012 80);
@@ -79,15 +79,16 @@
   --chart-4: oklch(0.4 0.03 250);
   --chart-5: oklch(0.7 0.08 90);
   --radius: 0.625rem;
-  /* Меню CRM графитовое в обеих темах (docs/design/crm-concept-*.webp). */
-  --sidebar: oklch(0.2 0.007 250);
-  --sidebar-foreground: oklch(0.9 0.012 80);
-  --sidebar-primary: oklch(0.78 0.12 78);
-  --sidebar-primary-foreground: oklch(0.2 0.01 60);
-  --sidebar-accent: oklch(0.27 0.01 250);
-  --sidebar-accent-foreground: oklch(0.95 0.01 80);
-  --sidebar-border: oklch(0.3 0.008 250);
-  --sidebar-ring: oklch(0.78 0.12 78);
+  /* Меню CRM следует теме: в светлой — тёплое светлое, текущий раздел — латунный
+     текст 5,6:1 на подложке; пункты меню — 8,4:1. */
+  --sidebar: oklch(0.94 0.016 80);
+  --sidebar-foreground: oklch(0.24 0.015 60);
+  --sidebar-primary: oklch(0.45 0.09 65);
+  --sidebar-primary-foreground: oklch(0.985 0.005 80);
+  --sidebar-accent: oklch(0.895 0.026 78);
+  --sidebar-accent-foreground: oklch(0.24 0.015 60);
+  --sidebar-border: oklch(0.87 0.02 75);
+  --sidebar-ring: oklch(0.6 0.1 70);
 }
 
 [data-theme="dark"] {
@@ -115,9 +116,15 @@
   --chart-3: oklch(0.68 0.1 30);
   --chart-4: oklch(0.6 0.03 250);
   --chart-5: oklch(0.85 0.06 90);
+  /* Меню в тёмной теме — графит чуть темнее фона, все токены явно: светлые не наследуются. */
   --sidebar: oklch(0.16 0.006 250);
+  --sidebar-foreground: oklch(0.9 0.012 80);
+  --sidebar-primary: oklch(0.78 0.12 78);
+  --sidebar-primary-foreground: oklch(0.2 0.01 60);
   --sidebar-accent: oklch(0.24 0.008 250);
+  --sidebar-accent-foreground: oklch(0.95 0.01 80);
   --sidebar-border: oklch(0.26 0.008 250);
+  --sidebar-ring: oklch(0.78 0.12 78);
 }
 
 @layer base {

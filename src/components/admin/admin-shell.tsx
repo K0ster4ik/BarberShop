@@ -67,7 +67,7 @@ function ShellFrame({
 }) {
   return (
     <div className="flex min-h-svh flex-1">
-      {/* Меню графитовое в обеих темах (docs/design/crm-concept-*.webp). */}
+      {/* Меню следует теме: светлое в светлой, графитовое в тёмной. */}
       <aside className="hidden w-60 shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground md:flex">
         <div className="flex h-14 items-center border-b border-sidebar-border px-5">
           <span className="font-display text-base font-semibold tracking-[0.14em] text-sidebar-primary uppercase">

@@ -55,7 +55,7 @@ export function AdminNav({
             aria-current={active ? "page" : undefined}
             className={cn(
               "relative flex min-h-10 items-center gap-3 rounded-md px-3 text-sm transition-colors outline-none focus-visible:ring-3 focus-visible:ring-sidebar-ring/50",
-              // Текущий раздел: латунный текст и полоска слева. Подложка — графитовая:
+              // Текущий раздел: латунный текст и полоска слева. Подложка нейтральная:
               // на латунной латунный текст не набирает контраст 4,5:1.
               active
                 ? "bg-sidebar-accent font-medium text-sidebar-primary before:absolute before:inset-y-2 before:left-0 before:w-0.5 before:rounded-full before:bg-sidebar-primary"
