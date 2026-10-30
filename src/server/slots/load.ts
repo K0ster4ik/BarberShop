@@ -30,6 +30,8 @@ export async function loadMasterSchedule(
   from: DateString,
   to: DateString,
   timezone: string = salon.timezone,
+  // Переносимая запись не должна занимать своё же время.
+  excludeBookingId?: string,
 ): Promise<(date: DateString) => MasterDay[]> {
   const ids = [...masterIds];
   const rangeStart = salonTimeToInstant(from, 0, timezone);
@@ -54,6 +56,7 @@ export async function loadMasterSchedule(
         blockedUntil: { gt: rangeStart },
         status: { in: ACTIVE_BOOKING_STATUSES },
         deletedAt: null,
+        ...(excludeBookingId && { id: { not: excludeBookingId } }),
       },
       select: {
         masterId: true,
@@ -106,6 +109,7 @@ export async function loadMasterDays(
   masterIds: readonly string[],
   date: DateString,
   timezone: string = salon.timezone,
+  excludeBookingId?: string,
 ): Promise<MasterDay[]> {
   const schedule = await loadMasterSchedule(
     db,
@@ -113,6 +117,7 @@ export async function loadMasterDays(
     date,
     date,
     timezone,
+    excludeBookingId,
   );
   return schedule(date);
 }

@@ -134,6 +134,24 @@ const visitFormat = new Intl.DateTimeFormat("ru-RU", {
   minute: "2-digit",
 });
 
+const dayTimeFormat = new Intl.DateTimeFormat("ru-RU", {
+  timeZone: salon.timezone,
+  day: "numeric",
+  month: "long",
+  hour: "2-digit",
+  minute: "2-digit",
+});
+
+/** «3 ноября в 14:20» по часам салона — когда внесли оплату, создали запись. */
+export function formatSalonDayTime(instant: Date): string {
+  return dayTimeFormat.format(instant);
+}
+
+/** «14:20» по часам салона. */
+export function formatSalonTime(instant: Date): string {
+  return minutesToTime(toSalonMinutes(instant));
+}
+
 /** «ср, 4 ноября в 14:15» по часам салона — время визита для клиента. */
 export function formatSalonVisit(instant: Date): string {
   return visitFormat.format(instant);

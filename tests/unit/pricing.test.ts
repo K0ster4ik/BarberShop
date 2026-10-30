@@ -172,6 +172,50 @@ describe("calculatePricing: master discount", () => {
       durationMin: 60,
     });
   });
+
+  it("keeps the master discount from the booking snapshot instead of looking for promotions", () => {
+    const result = price({
+      services: [
+        { ...haircut, keptDiscount: { amount: 37_000, promotionId: "old" } },
+        { ...beard, keptDiscount: { amount: 0, promotionId: null } },
+      ],
+      // Акция, которой не было при записи, снимок не меняет.
+      promotions: [promotion({ id: "new", value: 50 })],
+    });
+    expect(result.items).toMatchObject([
+      { masterDiscount: 37_000, price: 148_000, promotionId: "old" },
+      { masterDiscount: 0, price: 100_000, promotionId: null },
+    ]);
+    expect(result.subtotal).toBe(248_000);
+  });
+
+  it("lets an admin's price replace a kept discount too", () => {
+    const result = price({
+      services: [
+        {
+          ...haircut,
+          manualPrice: 120_000,
+          keptDiscount: { amount: 37_000, promotionId: "old" },
+        },
+      ],
+    });
+    expect(result.items[0]).toMatchObject({
+      masterDiscount: 0,
+      price: 120_000,
+      isPriceManual: true,
+      promotionId: null,
+    });
+  });
+
+  it("does not let a kept discount exceed the base price", () => {
+    expect(() =>
+      price({
+        services: [
+          { ...beard, keptDiscount: { amount: 100_001, promotionId: null } },
+        ],
+      }),
+    ).toThrow(RangeError);
+  });
 });
 
 describe("calculatePricing: salon discount", () => {

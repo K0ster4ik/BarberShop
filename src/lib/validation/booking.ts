@@ -10,7 +10,9 @@ import { PROMO_CODE_PATTERN } from "./promo-codes";
 export const MAX_SERVICES_PER_BOOKING = 5;
 export const ANY_MASTER = "any";
 
-const idField = z.string().regex(/^[a-z0-9]{8,40}$/, "Неверный идентификатор");
+export const idField = z
+  .string()
+  .regex(/^[a-z0-9]{8,40}$/, "Неверный идентификатор");
 
 /** Выбор на первых шагах: услуги, мастер (или «любой»), дата и время по часам салона. */
 export const bookingSelectionShape = {

@@ -30,6 +30,7 @@ export async function loadAvailability(
   dates: readonly DateString[],
   now: Date,
   settings: SalonSettings = salon,
+  excludeBookingId?: string,
 ): Promise<Map<DateString, CombinedSlot[]>> {
   const result = new Map<DateString, CombinedSlot[]>();
   const first = dates[0];
@@ -42,6 +43,7 @@ export async function loadAvailability(
     first,
     last,
     settings.timezone,
+    excludeBookingId,
   );
   for (const date of dates) {
     const days = schedule(date);

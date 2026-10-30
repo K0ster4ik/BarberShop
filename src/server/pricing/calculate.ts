@@ -15,6 +15,9 @@ export type PricedService = {
   durationMin: number; // длительность у мастера
   bufferMin: number | null; // уборка после услуги; null — как в настройках салона
   manualPrice?: number | null; // цена, заданная админом вручную
+  // Скидка мастера из снимка записи: при правке записи без смены мастера акции заново
+  // не подбираются (DESIGN.md, 5.2, инвариант 8).
+  keptDiscount?: { amount: number; promotionId: string | null } | null;
 };
 
 /** Акция мастера. serviceId: null — на все его услуги. */
@@ -100,6 +103,12 @@ export function calculatePricing(input: PricingInput): PricingResult {
     if (service.manualPrice != null) {
       assertKopecks(service.manualPrice, "manualPrice");
     }
+    if (service.keptDiscount) {
+      assertKopecks(service.keptDiscount.amount, "keptDiscount");
+      if (service.keptDiscount.amount > service.basePrice) {
+        throw new RangeError("keptDiscount exceeds basePrice");
+      }
+    }
     if (!Number.isInteger(service.durationMin) || service.durationMin <= 0) {
       throw new RangeError(`Invalid durationMin: ${service.durationMin}`);
     }
@@ -176,6 +185,15 @@ function priceService(
       price: service.manualPrice,
       isPriceManual: true,
       promotionId: null,
+    };
+  }
+  if (service.keptDiscount) {
+    return {
+      ...item,
+      masterDiscount: service.keptDiscount.amount,
+      price: service.basePrice - service.keptDiscount.amount,
+      isPriceManual: false,
+      promotionId: service.keptDiscount.promotionId,
     };
   }
   let best = { amount: 0, promotionId: null as string | null };
