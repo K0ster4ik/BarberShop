@@ -27,6 +27,7 @@ import {
   FieldLegend,
   FieldSet,
 } from "@/components/ui/field";
+import { formatDay } from "@/components/admin/format";
 import { formatDiscount, formatMoney } from "@/lib/money";
 import { normalizePhone } from "@/lib/phone";
 import { cn } from "@/lib/utils";
@@ -151,7 +152,7 @@ export function NewBookingForm({
   return (
     <form
       noValidate
-      className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start"
+      className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start"
       onSubmit={form.handleSubmit(async (data) => {
         const result = await submitAction(form, () => createBooking(data));
         if (result?.ok) router.push(`/admin/bookings/${result.data.id}`);
@@ -226,7 +227,14 @@ export function NewBookingForm({
       </div>
 
       <aside className="flex flex-col gap-3 lg:sticky lg:top-4">
-        <PriceSummary {...quote} />
+        <PriceSummary
+          {...quote}
+          visit={
+            master && values.date && values.time
+              ? `${master.name} · ${formatDay(values.date)}, ${values.time}`
+              : null
+          }
+        />
         <FormSubmit pending={form.formState.isSubmitting}>
           Создать запись
         </FormSubmit>
@@ -314,11 +322,13 @@ export type EditBookingDefaults = BookingUpdateInput & {
 
 export function EditBookingForm({
   bookingId,
+  version,
   masters,
   defaults,
   onDone,
 }: {
   bookingId: string;
+  version: string;
   masters: { id: string; name: string }[];
   defaults: EditBookingDefaults;
   onDone: () => void;
@@ -355,7 +365,7 @@ export function EditBookingForm({
       noValidate
       onSubmit={form.handleSubmit(async (data) => {
         const result = await submitAction(form, () =>
-          updateBooking(bookingId, data),
+          updateBooking(bookingId, version, data),
         );
         if (result?.ok) onDone();
       })}
@@ -375,6 +385,7 @@ export function EditBookingForm({
             Промокод записи {promoCode} учитывается.
           </p>
         )}
+        <PriceSummary {...quote} />
         <ManualPrices
           control={form.control}
           items={items}
@@ -384,7 +395,6 @@ export function EditBookingForm({
             Object.values(initial.prices).some((price) => price !== null)
           }
         />
-        <PriceSummary {...quote} />
         <FormSubmit pending={form.formState.isSubmitting}>Сохранить</FormSubmit>
       </FieldGroup>
     </form>
@@ -622,10 +632,12 @@ function PriceSummary({
   data: quote,
   error,
   loading,
+  visit = null,
 }: {
   data: StaffQuote | null;
   error: string | null;
   loading: boolean;
+  visit?: string | null; // «Артём Соколов · 30 октября 2026 г., 17:25»
 }) {
   return (
     <div
@@ -637,6 +649,7 @@ function PriceSummary({
       aria-busy={loading}
     >
       <h2 className="font-display text-lg font-semibold">Итог</h2>
+      {visit && <p className="text-sm">{visit}</p>}
       {error && <p className="text-sm text-destructive">{error}</p>}
       {!quote && !error && (
         <p className="text-sm text-muted-foreground">

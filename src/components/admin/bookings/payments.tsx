@@ -66,7 +66,7 @@ export function BookingPayments({
               </div>
               {canRemove && (
                 <ConfirmAction
-                  title="Удалить оплату?"
+                  title={`Удалить оплату ${formatMoney(payment.amount)} (${PAYMENT_METHOD_LABELS[payment.method].toLowerCase()})?`}
                   description="Удаляйте только ошибочно внесённую оплату: она пропадёт из выручки."
                   action={() => removePayment(payment.id)}
                   trigger={

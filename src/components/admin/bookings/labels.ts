@@ -35,17 +35,21 @@ export const STATUS_BADGE: Record<BookingStatus, string> = {
   NO_SHOW: "bg-rose-100 text-rose-950 dark:bg-rose-400/20 dark:text-rose-100",
 };
 
-/** Плашка записи в расписании: цветная полоска слева и лёгкая подложка. */
+/**
+ * Плашка записи в расписании: цветная полоска слева и подложка. Подложка непрозрачная
+ * (оттенок подмешан к цвету карточки): сквозь неё не видны линии часов и «сейчас».
+ */
+// Классы записаны целиком: Tailwind находит их по тексту исходников.
 export const STATUS_BLOCK: Record<BookingStatus, string> = {
   PENDING:
-    "border-l-amber-500 bg-amber-50 hover:bg-amber-100 dark:bg-amber-400/10 dark:hover:bg-amber-400/20",
+    "border-l-amber-500 bg-amber-50 hover:bg-amber-100 dark:bg-[color-mix(in_oklch,var(--color-amber-400)_12%,var(--card))] dark:hover:bg-[color-mix(in_oklch,var(--color-amber-400)_22%,var(--card))]",
   CONFIRMED:
-    "border-l-sky-500 bg-sky-50 hover:bg-sky-100 dark:bg-sky-400/10 dark:hover:bg-sky-400/20",
+    "border-l-sky-500 bg-sky-50 hover:bg-sky-100 dark:bg-[color-mix(in_oklch,var(--color-sky-400)_12%,var(--card))] dark:hover:bg-[color-mix(in_oklch,var(--color-sky-400)_22%,var(--card))]",
   COMPLETED:
-    "border-l-emerald-500 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-400/10 dark:hover:bg-emerald-400/20",
+    "border-l-emerald-500 bg-emerald-50 hover:bg-emerald-100 dark:bg-[color-mix(in_oklch,var(--color-emerald-400)_12%,var(--card))] dark:hover:bg-[color-mix(in_oklch,var(--color-emerald-400)_22%,var(--card))]",
   CANCELLED: "border-l-border bg-muted",
   NO_SHOW:
-    "border-l-rose-400 bg-rose-50/70 text-muted-foreground hover:bg-rose-100 dark:bg-rose-400/10 dark:hover:bg-rose-400/20",
+    "border-l-rose-400 bg-rose-50 text-muted-foreground hover:bg-rose-100 dark:bg-[color-mix(in_oklch,var(--color-rose-400)_10%,var(--card))] dark:hover:bg-[color-mix(in_oklch,var(--color-rose-400)_20%,var(--card))]",
 };
 
 export const SOURCE_LABELS: Record<BookingSource, string> = {

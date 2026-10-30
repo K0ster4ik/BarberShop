@@ -158,6 +158,7 @@ function CompleteForm({
     },
   });
   const pay = useWatch({ control: form.control, name: "pay" });
+  const amount = useWatch({ control: form.control, name: "amount" });
 
   return (
     <form
@@ -204,7 +205,9 @@ function CompleteForm({
           </div>
         )}
         <FormSubmit pending={form.formState.isSubmitting}>
-          Отметить визит
+          {pay && typeof amount === "number" && amount > 0
+            ? `Отметить визит и внести ${formatMoney(Math.round(amount * 100))}`
+            : "Отметить визит"}
         </FormSubmit>
       </FieldGroup>
     </form>

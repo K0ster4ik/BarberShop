@@ -109,13 +109,16 @@ async function BookingCard({
         <div className="flex flex-wrap gap-2">
           <StatusActions
             bookingId={booking.id}
-            allowed={nextStatuses(booking, staff.role, now)}
+            allowed={nextStatuses(booking, staff.role, now).filter(
+              (status) => status !== "NO_SHOW" || booking.payments.length === 0,
+            )}
             totalPrice={booking.totalPrice}
             fromWebsite={booking.source === "WEBSITE"}
           />
           {editable && (
             <EditBookingButton
               bookingId={booking.id}
+              version={booking.updatedAt.toISOString()}
               masters={transferMasters}
               defaults={editDefaults(booking)}
             />
@@ -124,7 +127,7 @@ async function BookingCard({
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
         <div className="flex flex-col gap-6">
           <Panel title="Услуги и цена">
             <ul className="flex flex-col gap-2">

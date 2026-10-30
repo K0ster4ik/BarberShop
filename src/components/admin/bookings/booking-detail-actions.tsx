@@ -9,10 +9,12 @@ import { type EditBookingDefaults, EditBookingForm } from "./booking-form";
 
 export function EditBookingButton({
   bookingId,
+  version,
   masters,
   defaults,
 }: {
   bookingId: string;
+  version: string; // updatedAt записи: правка поверх чужой не пройдёт
   masters: { id: string; name: string }[];
   defaults: EditBookingDefaults;
 }) {
@@ -29,6 +31,7 @@ export function EditBookingButton({
       {(close) => (
         <EditBookingForm
           bookingId={bookingId}
+          version={version}
           masters={masters}
           defaults={defaults}
           onDone={close}

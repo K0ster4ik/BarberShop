@@ -1,5 +1,5 @@
 import { salon, type SalonSettings } from "@/config/salon";
-import type { PrismaClient } from "@/generated/prisma/client";
+import type { Prisma, PrismaClient } from "@/generated/prisma/client";
 import type { SalonDiscountSource } from "@/generated/prisma/enums";
 import { formatMoney, rublesToKopecks } from "@/lib/money";
 import { normalizePhone } from "@/lib/phone";
@@ -524,17 +524,42 @@ export async function quoteBookingUpdate(
   );
 }
 
-/** Перенос, смена мастера, длительность, ручные цены и скидка. Статус сохраняется. */
+/**
+ * Блокирует строку записи до конца транзакции. Всё, что проверяется после неё (статус,
+ * мастер, итог, оплаты), не изменится параллельно: перенос, смена статуса и оплата
+ * одной записи идут по очереди, а не проскакивают между проверкой и UPDATE.
+ */
+async function lockBooking(tx: Prisma.TransactionClient, id: string) {
+  await tx.$queryRaw`SELECT id FROM "Booking" WHERE id = ${id} FOR UPDATE`;
+}
+
+async function paidSum(tx: Prisma.TransactionClient, bookingId: string) {
+  const paid = await tx.payment.aggregate({
+    where: { bookingId },
+    _sum: { amount: true },
+  });
+  return paid._sum.amount ?? 0;
+}
+
+/**
+ * Перенос, смена мастера, длительность, ручные цены и скидка. Статус сохраняется.
+ * `version` — updatedAt записи, с которой открыли форму: правка поверх чужой (перенос,
+ * смена статуса) не пройдёт, сотрудник увидит просьбу обновить страницу.
+ */
 export async function updateStaffBooking(
   db: PrismaClient,
   staff: StaffUser,
   id: string,
+  version: Date,
   input: BookingUpdateInput,
   now: Date,
   settings: SalonSettings = salon,
 ): Promise<void> {
   assertManager(staff);
   const booking = await loadForUpdate(db, staff, id);
+  if (booking.updatedAt.getTime() !== version.getTime()) {
+    throw new DomainError(BOOKING_CHANGED);
+  }
   const { visitAt, pricing, durationMin } = await priceUpdate(
     db,
     booking,
@@ -542,24 +567,31 @@ export async function updateStaffBooking(
     now,
     settings,
   );
-  const paid = booking.payments.reduce((sum, row) => sum + row.amount, 0);
-  if (paid > pricing.totalPrice) {
-    throw new DomainError(
-      `По записи уже оплачено ${formatMoney(paid)} — больше нового итога. Сначала удалите лишнюю оплату.`,
-    );
-  }
   const endsAt = addMinutes(visitAt, durationMin);
 
   try {
     await db.$transaction(async (tx) => {
-      // Условие на updatedAt: правка поверх чужой (статус, другая правка) не пройдёт.
-      const updated = await tx.booking.updateMany({
+      await lockBooking(tx, id);
+      // Цена посчитана по прочитанной версии: если запись успели изменить — отказ.
+      const current = await tx.booking.findFirst({
         where: {
           id,
-          updatedAt: booking.updatedAt,
+          updatedAt: version,
           deletedAt: null,
           status: { in: EDITABLE_BOOKING_STATUSES },
         },
+        select: { id: true },
+      });
+      if (!current) throw new DomainError(BOOKING_CHANGED);
+      // Оплата не меняет updatedAt — сумму оплат проверяем под блокировкой.
+      const paid = await paidSum(tx, id);
+      if (paid > pricing.totalPrice) {
+        throw new DomainError(
+          `По записи уже оплачено ${formatMoney(paid)} — больше нового итога. Сначала удалите лишнюю оплату.`,
+        );
+      }
+      await tx.booking.update({
+        where: { id },
         data: {
           masterId: input.masterId,
           startsAt: visitAt,
@@ -574,7 +606,6 @@ export async function updateStaffBooking(
           totalPrice: pricing.totalPrice,
         },
       });
-      if (updated.count === 0) throw new DomainError(BOOKING_CHANGED);
       for (const [index, item] of pricing.items.entries()) {
         const row = booking.items[index];
         if (!row) throw new Error("Booking items changed during update");
@@ -611,41 +642,43 @@ export async function changeBookingStatus(
   input: StatusChangeInput,
   now: Date,
 ): Promise<{ notificationId: string | null }> {
-  const booking = await db.booking.findFirst({
-    where: { id, deletedAt: null, ...bookingScope(staff) },
-    select: {
-      status: true,
-      startsAt: true,
-      source: true,
-      totalPrice: true,
-      _count: { select: { payments: true } },
-    },
-  });
-  if (!booking) throw new DomainError(STAFF_BOOKING_NOT_FOUND);
   const { to, payment } = input;
-  const issue = statusChangeIssue(booking, to, staff.role, now);
-  if (issue) throw new DomainError(issue);
-  if (to === "NO_SHOW" && booking._count.payments > 0) {
-    throw new DomainError(
-      "По записи есть оплата. Сначала удалите её, потом отмечайте неявку.",
-    );
-  }
   if (payment && to !== "COMPLETED") {
     throw new DomainError("Оплату вносят вместе с отметкой «Пришёл».");
   }
   const amount = payment ? rublesToKopecks(payment.amount) : 0;
-  if (payment && amount > booking.totalPrice) {
-    throw new DomainError(
-      `Сумма больше итога записи (${formatMoney(booking.totalPrice)})`,
-      "payment.amount",
-    );
-  }
 
   try {
     return await db.$transaction(async (tx) => {
-      // Условие на прежний статус: два одновременных нажатия не сработают дважды.
-      const updated = await tx.booking.updateMany({
-        where: { id, status: booking.status, deletedAt: null },
+      await lockBooking(tx, id);
+      // Права и правила — по заблокированной строке: если запись успели передать
+      // другому мастеру или перенести, решение принимается по новым данным.
+      const booking = await tx.booking.findFirst({
+        where: { id, deletedAt: null, ...bookingScope(staff) },
+        select: {
+          status: true,
+          startsAt: true,
+          source: true,
+          totalPrice: true,
+        },
+      });
+      if (!booking) throw new DomainError(STAFF_BOOKING_NOT_FOUND);
+      const issue = statusChangeIssue(booking, to, staff.role, now);
+      if (issue) throw new DomainError(issue);
+      const paid = await paidSum(tx, id);
+      if (to === "NO_SHOW" && paid > 0) {
+        throw new DomainError(
+          "По записи есть оплата. Сначала удалите её, потом отмечайте неявку.",
+        );
+      }
+      if (payment && amount > booking.totalPrice - paid) {
+        throw new DomainError(
+          `Сумма больше остатка к оплате (${formatMoney(booking.totalPrice - paid)})`,
+          "payment.amount",
+        );
+      }
+      await tx.booking.update({
+        where: { id },
         data: {
           status: to,
           ...(to === "CONFIRMED" && { confirmedAt: now }),
@@ -655,7 +688,6 @@ export async function changeBookingStatus(
           }),
         },
       });
-      if (updated.count === 0) throw new DomainError(BOOKING_CHANGED);
       if (payment) {
         await tx.payment.create({
           data: { bookingId: id, amount, method: payment.method, paidAt: now },
@@ -691,27 +723,20 @@ export async function addPayment(
   input: PaymentInput,
   now: Date,
 ): Promise<void> {
-  const booking = await db.booking.findFirst({
-    where: { id: bookingId, deletedAt: null, ...bookingScope(staff) },
-    select: { status: true },
-  });
-  if (!booking) throw new DomainError(STAFF_BOOKING_NOT_FOUND);
-  if (booking.status !== "COMPLETED") {
-    throw new DomainError(PAYMENT_NEEDS_VISIT);
-  }
   const amount = rublesToKopecks(input.amount);
   await db.$transaction(async (tx) => {
-    // Блокировка строки записи: две оплаты одновременно не превысят итог.
-    const [row] = await tx.$queryRaw<{ totalPrice: number; status: string }[]>`
-      SELECT "totalPrice", status::text FROM "Booking"
-      WHERE id = ${bookingId} AND "deletedAt" IS NULL FOR UPDATE`;
-    if (!row) throw new DomainError(STAFF_BOOKING_NOT_FOUND);
-    if (row.status !== "COMPLETED") throw new DomainError(PAYMENT_NEEDS_VISIT);
-    const paid = await tx.payment.aggregate({
-      where: { bookingId },
-      _sum: { amount: true },
+    // Под блокировкой: две оплаты одновременно не превысят итог, а правка цены
+    // не проскочит между проверкой остатка и записью оплаты.
+    await lockBooking(tx, bookingId);
+    const booking = await tx.booking.findFirst({
+      where: { id: bookingId, deletedAt: null, ...bookingScope(staff) },
+      select: { status: true, totalPrice: true },
     });
-    const left = row.totalPrice - (paid._sum.amount ?? 0);
+    if (!booking) throw new DomainError(STAFF_BOOKING_NOT_FOUND);
+    if (booking.status !== "COMPLETED") {
+      throw new DomainError(PAYMENT_NEEDS_VISIT);
+    }
+    const left = booking.totalPrice - (await paidSum(tx, bookingId));
     if (amount > left) {
       throw new DomainError(
         left > 0

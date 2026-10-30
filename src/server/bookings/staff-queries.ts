@@ -3,6 +3,7 @@ import type { BookingStatus } from "@/generated/prisma/enums";
 import {
   addDays,
   type DateString,
+  formatSalonTime,
   MINUTES_PER_DAY,
   minutesBetween,
   salonTimeToInstant,
@@ -35,8 +36,12 @@ const sumPaid = (payments: readonly { amount: number }[]) =>
 
 export type BoardBooking = {
   id: string;
-  startMin: number; // минуты от полуночи дня по часам салона
+  // Минуты от полуночи дня по часам салона, обрезанные границами суток: визит
+  // 23:30–01:00 виден и вечером, и после полуночи следующего дня.
+  startMin: number;
   endMin: number;
+  start: string; // настоящее время начала и конца — «23:30»
+  end: string;
   status: BookingStatus;
   clientName: string;
   services: string;
@@ -74,7 +79,9 @@ export async function loadDayBoard(
     ...bookingScope(staff),
     deletedAt: null,
     status: { not: "CANCELLED" },
-    startsAt: range,
+    // Пересечение с днём, а не начало в этот день: ночной визит занят и после полуночи.
+    startsAt: { lt: range.lt },
+    endsAt: { gt: range.gte },
   };
   const masters = await db.master.findMany({
     where: {
@@ -125,8 +132,10 @@ export async function loadDayBoard(
     })),
     bookings: master.bookings.map((booking) => ({
       id: booking.id,
-      startMin: toMin(booking.startsAt),
-      endMin: toMin(booking.endsAt),
+      startMin: Math.max(0, toMin(booking.startsAt)),
+      endMin: Math.min(MINUTES_PER_DAY, toMin(booking.endsAt)),
+      start: formatSalonTime(booking.startsAt),
+      end: formatSalonTime(booking.endsAt),
       status: booking.status,
       clientName: booking.client.name,
       services: booking.items.map((item) => item.serviceName).join(", "),
@@ -366,6 +375,7 @@ export async function getBookingDetail(db: Db, staff: StaffUser, id: string) {
       cancelledAt: true,
       cancelledBy: true,
       createdAt: true,
+      updatedAt: true,
       masterId: true,
       createdBy: { select: { name: true } },
       client: {

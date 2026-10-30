@@ -82,8 +82,10 @@ export async function quoteBooking(
   );
 }
 
+/** `version` — updatedAt записи, с которой открыли форму (ISO). */
 export async function updateBooking(
   bookingId: string,
+  version: string,
   input: BookingUpdateInput,
 ): Promise<ActionResult> {
   const staff = await requireRole(...MANAGER_ROLES);
@@ -93,6 +95,7 @@ export async function updateBooking(
       db,
       staff,
       idField.parse(bookingId),
+      new Date(z.iso.datetime().parse(version)),
       data,
       new Date(),
     );

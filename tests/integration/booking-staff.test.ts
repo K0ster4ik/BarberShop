@@ -3,6 +3,7 @@ import type { PrismaClient } from "@/generated/prisma/client";
 import {
   addDays,
   addMinutes,
+  formatSalonTime,
   salonTimeToInstant,
   toSalonDate,
 } from "@/lib/time";
@@ -13,6 +14,7 @@ import {
 import { ForbiddenError, type StaffUser } from "@/server/auth/access";
 import {
   addPayment,
+  BOOKING_CHANGED,
   changeBookingStatus,
   createStaffBooking,
   deleteBooking,
@@ -100,6 +102,11 @@ async function freeTime(masterId: string, date = tomorrow) {
   const [time] = await free(masterId, date);
   if (!time) throw new Error(`No free time for ${masterId} on ${date}`);
   return time;
+}
+
+/** updatedAt записи — версия, с которой «открыли форму». */
+async function versionOf(id: string) {
+  return (await db.booking.findUniqueOrThrow({ where: { id } })).updatedAt;
 }
 
 async function errorOf(promise: Promise<unknown>) {
@@ -243,6 +250,7 @@ describe("updateStaffBooking", () => {
       db,
       admin,
       id,
+      await versionOf(id),
       {
         masterId: ownMasterId,
         date: tomorrow,
@@ -298,6 +306,7 @@ describe("updateStaffBooking", () => {
       db,
       owner,
       id,
+      await versionOf(id),
       { ...update, prices: { [item.id]: 999 } },
       TEST_NOW,
     );
@@ -345,7 +354,14 @@ describe("updateStaffBooking", () => {
     ).toBe(false);
     expect(
       await errorOf(
-        updateStaffBooking(db, owner, a.id, move("22:00"), TEST_NOW),
+        updateStaffBooking(
+          db,
+          owner,
+          a.id,
+          await versionOf(a.id),
+          move("22:00"),
+          TEST_NOW,
+        ),
       ),
     ).toBe(MASTER_BUSY);
   });
@@ -364,6 +380,7 @@ describe("updateStaffBooking", () => {
           db,
           master,
           id,
+          await versionOf(id),
           {
             masterId: ownMasterId,
             date: tomorrow,
@@ -600,6 +617,7 @@ describe("payments", () => {
           db,
           owner,
           id,
+          await versionOf(id),
           {
             masterId: booking.masterId,
             date: today,
@@ -640,6 +658,140 @@ describe("deleteBooking", () => {
     expect(list.rows.map((row) => row.id)).not.toContain(id);
     // Время снова свободно — на него можно записать.
     await createStaffBooking(db, owner, input({ time }), TEST_NOW);
+  });
+});
+
+describe("concurrent edits (Codex review)", () => {
+  const keep = (time: string, masterId = ownMasterId, date = tomorrow) => ({
+    masterId,
+    date,
+    time,
+    durationMin: null,
+    discount: { mode: "none" as const, kind: "PERCENT" as const, value: null },
+    prices: {},
+  });
+
+  it("refuses to save a form opened before someone else's change", async () => {
+    const time = await freeTime(ownMasterId);
+    const { id } = await createStaffBooking(
+      db,
+      owner,
+      input({ time }),
+      TEST_NOW,
+    );
+    const opened = await versionOf(id);
+    await updateStaffBooking(db, admin, id, opened, keep("21:00"), TEST_NOW);
+    // Второй админ сохраняет форму, открытую до переноса, — время 21:00 не затирается.
+    expect(
+      await errorOf(
+        updateStaffBooking(db, owner, id, opened, keep(time), TEST_NOW),
+      ),
+    ).toBe(BOOKING_CHANGED);
+    const booking = await db.booking.findUniqueOrThrow({ where: { id } });
+    expect(formatSalonTime(booking.startsAt)).toBe("21:00");
+  });
+
+  it("never leaves payments above the total when a payment races a price cut", async () => {
+    const { id } = await startedBooking();
+    await changeBookingStatus(
+      db,
+      owner,
+      id,
+      { to: "COMPLETED", payment: null },
+      TEST_NOW,
+    );
+    const booking = await db.booking.findUniqueOrThrow({
+      where: { id },
+      include: { items: true },
+    });
+    const item = booking.items[0];
+    if (!item) throw new Error("No items");
+    const cheaper = {
+      ...keep("08:00", booking.masterId, today),
+      prices: { [item.id]: 100 },
+    };
+    await Promise.all([
+      errorOf(
+        addPayment(
+          db,
+          owner,
+          id,
+          { amount: booking.totalPrice / 100, method: "CASH" },
+          TEST_NOW,
+        ),
+      ),
+      errorOf(
+        updateStaffBooking(db, owner, id, booking.updatedAt, cheaper, TEST_NOW),
+      ),
+    ]);
+    const after = await db.booking.findUniqueOrThrow({ where: { id } });
+    const paid = await db.payment.aggregate({
+      where: { bookingId: id },
+      _sum: { amount: true },
+    });
+    expect(paid._sum.amount ?? 0).toBeLessThanOrEqual(after.totalPrice);
+  });
+
+  it("does not let a master change a booking moved to another master meanwhile", async () => {
+    const time = await freeTime(ownMasterId);
+    const { id } = await createStaffBooking(
+      db,
+      owner,
+      input({ time }),
+      TEST_NOW,
+    );
+    const otherTime = await freeTime(otherMasterId);
+    await Promise.all([
+      errorOf(
+        updateStaffBooking(
+          db,
+          admin,
+          id,
+          await versionOf(id),
+          keep(otherTime, otherMasterId),
+          TEST_NOW,
+        ),
+      ),
+      errorOf(
+        changeBookingStatus(
+          db,
+          master,
+          id,
+          { to: "CANCELLED", payment: null },
+          TEST_NOW,
+        ),
+      ),
+    ]);
+    const booking = await db.booking.findUniqueOrThrow({ where: { id } });
+    // Либо отмена прошла до переноса (запись ещё была его), либо перенос — и тогда
+    // мастер чужую запись уже не трогает.
+    expect(
+      booking.masterId === otherMasterId && booking.status === "CANCELLED",
+    ).toBe(false);
+  });
+
+  it("shows a visit after midnight on the next day too", async () => {
+    const { id } = await createStaffBooking(
+      db,
+      owner,
+      input({ time: "23:30", durationMin: 90 }),
+      TEST_NOW,
+    );
+    const nextDay = addDays(tomorrow, 1);
+    const board = await loadDayBoard(db, owner, nextDay);
+    const block = board.columns
+      .find((column) => column.master.id === ownMasterId)
+      ?.bookings.find((booking) => booking.id === id);
+    expect(block).toMatchObject({
+      startMin: 0,
+      endMin: 60,
+      start: "23:30",
+      end: "01:00",
+    });
+    const evening = (await loadDayBoard(db, owner, tomorrow)).columns
+      .find((column) => column.master.id === ownMasterId)
+      ?.bookings.find((booking) => booking.id === id);
+    expect(evening).toMatchObject({ startMin: 23 * 60 + 30, endMin: 24 * 60 });
   });
 });
 

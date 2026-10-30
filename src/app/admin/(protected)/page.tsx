@@ -11,6 +11,7 @@ import {
 import { PageSkeleton } from "@/components/admin/page-skeleton";
 import { salon } from "@/config/salon";
 import { formatMoney } from "@/lib/money";
+import { cn } from "@/lib/utils";
 import { formatSalonTime, toSalonDate, toSalonMinutes } from "@/lib/time";
 import { requireRole } from "@/server/auth";
 import { SECTION_ROLES } from "@/server/auth/access";
@@ -98,19 +99,26 @@ async function Today() {
         )}
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_20rem] xl:items-start">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_20rem] xl:items-start">
         <section
           aria-labelledby="requests-title"
-          className="flex flex-col gap-3 xl:order-2"
+          className={cn(
+            "flex flex-col gap-3 xl:order-2",
+            own && "order-2", // мастеру на телефоне важнее своё расписание
+          )}
         >
           <h2
             id="requests-title"
             className="flex items-center gap-2 font-display text-xl font-semibold"
           >
             Заявки с сайта
-            <span className="rounded-full bg-primary/15 px-2 text-sm font-medium text-foreground tabular-nums">
+            <Link
+              href="/admin/bookings?status=PENDING"
+              className="rounded-full bg-primary/15 px-2 font-sans text-sm font-medium text-foreground tabular-nums hover:bg-primary/25"
+              aria-label={`Все заявки: ${stats.pending}`}
+            >
               {stats.pending}
-            </span>
+            </Link>
           </h2>
           {requests.length === 0 ? (
             <p className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
@@ -125,6 +133,7 @@ async function Today() {
                   request={request}
                   role={staff.role}
                   now={now}
+                  today={today}
                 />
               ))}
               {stats.pending > requests.length && (
@@ -141,7 +150,10 @@ async function Today() {
 
         <section
           aria-labelledby="schedule-title"
-          className="flex min-w-0 flex-col gap-3 xl:order-1"
+          className={cn(
+            "flex min-w-0 flex-col gap-3 xl:order-1",
+            own && "order-1",
+          )}
         >
           <div className="flex items-center justify-between gap-3">
             <h2

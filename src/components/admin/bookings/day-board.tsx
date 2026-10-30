@@ -14,7 +14,7 @@ const PX_PER_MIN = 1.2; // 72px на час: у часовой записи по
 
 const offHours: CSSProperties = {
   backgroundImage:
-    "repeating-linear-gradient(135deg, var(--muted) 0 6px, transparent 6px 12px)",
+    "repeating-linear-gradient(135deg, color-mix(in oklch, var(--muted) 55%, transparent) 0 4px, transparent 4px 14px)",
 };
 
 export function DayBoardView({
@@ -133,6 +133,14 @@ export function DayBoardView({
                 Отсутствие
               </div>
             ))}
+            {/* Линия «сейчас» под плашками: текст записи она не перечёркивает. */}
+            {showNow && (
+              <div
+                className="pointer-events-none absolute inset-x-0 border-t-2 border-destructive"
+                style={{ top: y(nowMin) }}
+                aria-hidden
+              />
+            )}
             {column.bookings.map((booking) => (
               <BookingBlock
                 key={booking.id}
@@ -144,13 +152,6 @@ export function DayBoardView({
                 }
               />
             ))}
-            {showNow && (
-              <div
-                className="pointer-events-none absolute inset-x-0 z-10 border-t-2 border-destructive"
-                style={{ top: y(nowMin) }}
-                aria-hidden
-              />
-            )}
           </div>
         ))}
       </div>
@@ -167,7 +168,7 @@ function BookingBlock({
   top: number;
   height: number;
 }) {
-  const time = `${minutesToTime(booking.startMin)}–${minutesToTime(booking.endMin)}`;
+  const time = `${booking.start}–${booking.end}`;
   return (
     <Link
       href={`/admin/bookings/${booking.id}`}
@@ -177,11 +178,10 @@ function BookingBlock({
       )}
       style={{ top: top + 1, height: Math.max(height - 2, 22) }}
       aria-label={`${time}, ${booking.clientName}, ${booking.services}`}
+      title={`${time} · ${booking.clientName}\n${booking.services}`}
     >
       <span className="flex items-baseline gap-1.5 leading-tight">
-        <span className="font-semibold tabular-nums">
-          {minutesToTime(booking.startMin)}
-        </span>
+        <span className="font-semibold tabular-nums">{booking.start}</span>
         <span className="truncate font-medium">{booking.clientName}</span>
       </span>
       {height >= 40 && (

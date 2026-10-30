@@ -62,6 +62,8 @@ export function BookingFilters({
           name="q"
           type="search"
           defaultValue={values.query}
+          // После «назад» поле показывает запрос из адреса, а не прежний ввод.
+          key={values.query}
           placeholder="Имя или телефон клиента"
           className="h-11 sm:h-9"
         />

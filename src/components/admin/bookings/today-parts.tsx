@@ -4,7 +4,7 @@ import type { ComponentType, ReactNode } from "react";
 import type { Role } from "@/generated/prisma/enums";
 import { formatMoney } from "@/lib/money";
 import { formatPhone } from "@/lib/phone";
-import { formatSalonVisit, minutesToTime } from "@/lib/time";
+import { formatSalonVisit, toSalonDate } from "@/lib/time";
 import { cn } from "@/lib/utils";
 import { nextStatuses } from "@/server/bookings/lifecycle";
 import type { DayBoard, PendingRequest } from "@/server/bookings/staff-queries";
@@ -61,11 +61,14 @@ export function RequestCard({
   request,
   role,
   now,
+  today,
 }: {
   request: PendingRequest;
   role: Role;
   now: Date;
+  today: string;
 }) {
+  const soon = toSalonDate(request.startsAt) === today;
   const allowed = nextStatuses(
     { status: "PENDING", startsAt: request.startsAt },
     role,
@@ -100,8 +103,13 @@ export function RequestCard({
           </span>
         )}
       </p>
-      <p className="text-sm font-medium">
+      <p className="flex flex-wrap items-center gap-2 text-sm font-medium">
         {formatSalonVisit(request.startsAt)}
+        {soon && (
+          <span className="rounded-full bg-amber-100 px-2 text-xs text-amber-950 dark:bg-amber-400/20 dark:text-amber-100">
+            сегодня
+          </span>
+        )}
       </p>
       {request.clientComment && (
         <p className="line-clamp-3 rounded-md bg-muted/60 px-2 py-1 text-sm text-muted-foreground">
@@ -152,7 +160,7 @@ export function ScheduleList({
             )}
           >
             <span className="w-12 shrink-0 font-semibold tabular-nums">
-              {minutesToTime(row.startMin)}
+              {row.start}
             </span>
             <span className="flex min-w-0 flex-1 flex-col gap-0.5">
               <span className="truncate font-medium">{row.clientName}</span>
