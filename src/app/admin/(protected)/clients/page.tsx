@@ -51,7 +51,9 @@ async function Clients({
         })
       : null,
   ]);
-  const { page, ...values } = filters;
+  // Номер страницы берётся из ответа: за пределами списка он сводится к последней.
+  const { query, tagId, masterId, segment } = filters;
+  const values = { query, tagId, masterId, segment };
   const filtered =
     values.query !== "" ||
     values.tagId !== null ||
@@ -87,12 +89,12 @@ async function Clients({
               </li>
             ))}
           </ul>
-          <ClientTable rows={list.rows} />
+          <ClientTable rows={list.rows} manager={manager} />
         </>
       )}
 
       <Pager
-        page={page}
+        page={list.page}
         pageCount={list.pageCount}
         href={(target) => `/admin/clients${toClientSearch(values, target)}`}
       />
@@ -110,15 +112,14 @@ function ClientCard({ row }: { row: ClientListRow }) {
       href={`/admin/clients/${row.id}`}
       className="flex flex-col gap-1 rounded-lg border bg-card p-3 transition-colors hover:bg-muted/50 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
     >
-      <span className="flex items-baseline justify-between gap-3">
-        <span className="font-medium">{row.name}</span>
-        <span className="text-sm text-muted-foreground tabular-nums">
-          {formatPhone(row.phone)}
-        </span>
+      <span className="font-medium">{row.name}</span>
+      <span className="text-sm whitespace-nowrap text-muted-foreground tabular-nums">
+        {formatPhone(row.phone)}
       </span>
       <span className="text-sm text-muted-foreground">
         {row.visits} {plural(row.visits, ["визит", "визита", "визитов"])} ·
         последний: {lastVisit(row)}
+        {row.upcoming > 0 && " · есть запись впереди"}
       </span>
       {row.tags.length > 0 && (
         <span className="mt-1 flex flex-wrap gap-1">
@@ -131,7 +132,13 @@ function ClientCard({ row }: { row: ClientListRow }) {
   );
 }
 
-function ClientTable({ rows }: { rows: ClientListRow[] }) {
+function ClientTable({
+  rows,
+  manager,
+}: {
+  rows: ClientListRow[];
+  manager: boolean;
+}) {
   return (
     <div className="hidden overflow-hidden rounded-lg border bg-card md:block">
       <table className="w-full text-sm">
@@ -141,7 +148,9 @@ function ClientTable({ rows }: { rows: ClientListRow[] }) {
             <th className="px-3 py-2 font-medium">Теги</th>
             <th className="px-3 py-2 text-right font-medium">Визиты</th>
             <th className="px-3 py-2 font-medium">Последний визит</th>
-            <th className="px-3 py-2 text-right font-medium">Сумма</th>
+            <th className="px-3 py-2 text-right font-medium">
+              {manager ? "Оплачено" : "Ваша выручка"}
+            </th>
           </tr>
         </thead>
         <tbody className="divide-y">

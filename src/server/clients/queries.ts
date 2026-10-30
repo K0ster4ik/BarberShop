@@ -122,31 +122,33 @@ export async function listClients(
   // Через AND: фильтр мастера из адреса не снимает ограничение MASTER.
   const where: Prisma.ClientWhereInput = { AND: conditions };
 
-  const [total, rows] = await Promise.all([
-    db.client.count({ where }),
-    db.client.findMany({
-      where,
-      orderBy: [{ name: "asc" }, { id: "asc" }],
-      skip: (filters.page - 1) * CLIENTS_PAGE_SIZE,
-      take: CLIENTS_PAGE_SIZE,
-      select: {
-        id: true,
-        name: true,
-        phone: true,
-        discountKind: true,
-        discountValue: true,
-        tags: {
-          orderBy: { tag: { name: "asc" } },
-          select: { tag: { select: { id: true, name: true, color: true } } },
-        },
-        bookings: { where: visits, select: visitSelect },
+  const total = await db.client.count({ where });
+  // Номер страницы из адреса за пределами списка сводится к последней странице.
+  const pageCount = Math.max(1, Math.ceil(total / CLIENTS_PAGE_SIZE));
+  const page = Math.min(filters.page, pageCount);
+  const rows = await db.client.findMany({
+    where,
+    orderBy: [{ name: "asc" }, { id: "asc" }],
+    skip: (page - 1) * CLIENTS_PAGE_SIZE,
+    take: CLIENTS_PAGE_SIZE,
+    select: {
+      id: true,
+      name: true,
+      phone: true,
+      discountKind: true,
+      discountValue: true,
+      tags: {
+        orderBy: { tag: { name: "asc" } },
+        select: { tag: { select: { id: true, name: true, color: true } } },
       },
-    }),
-  ]);
+      bookings: { where: visits, select: visitSelect },
+    },
+  });
 
   return {
     total,
-    pageCount: Math.max(1, Math.ceil(total / CLIENTS_PAGE_SIZE)),
+    page,
+    pageCount,
     rows: rows.map(({ bookings, tags, ...client }) => {
       const stats = clientStats(
         bookings.map((booking) => ({

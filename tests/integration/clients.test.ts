@@ -293,6 +293,38 @@ describe("client card changes", () => {
     );
   });
 
+  it("keeps one of two tag sets saved at the same time, not their union", async () => {
+    const client = await db.client.findFirstOrThrow();
+    const { id: a } = await createTag(db, owner, {
+      name: "Гонка А",
+      color: "sky",
+    });
+    const { id: b } = await createTag(db, owner, {
+      name: "Гонка Б",
+      color: "rose",
+    });
+    await setClientTags(db, owner, client.id, []);
+    await Promise.all([
+      setClientTags(db, owner, client.id, [a]),
+      setClientTags(db, admin, client.id, [b]),
+    ]);
+    const saved = await db.clientTag.findMany({
+      where: { clientId: client.id },
+    });
+    expect(saved).toHaveLength(1);
+  });
+
+  it("refuses a birthday in the future", () => {
+    const tomorrow = new Date(Date.now() + 2 * DAY).toISOString().slice(0, 10);
+    const result = clientProfileSchema.safeParse({
+      name: "Имя Фамилия",
+      phone: "+7 999 765-43-21",
+      email: "",
+      birthday: tomorrow,
+    });
+    expect(result.success).toBe(false);
+  });
+
   it("lets a master write notes about own clients only and delete only their own", async () => {
     const own = await db.client.findFirstOrThrow({
       where: { bookings: { some: { masterId: ownMasterId } } },

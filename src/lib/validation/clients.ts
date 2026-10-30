@@ -27,7 +27,11 @@ export const clientProfileSchema = z.object({
       (value) => value === "" || z.email().safeParse(value).success,
       "Некорректный email",
     ),
-  birthday: optionalDateField, // "" — не указан
+  // "" — не указан. Сравнение строк ГГГГ-ММ-ДД: будущая дата — опечатка.
+  birthday: optionalDateField.refine(
+    (value) => value === "" || value <= new Date().toISOString().slice(0, 10),
+    "Дата рождения не может быть в будущем",
+  ),
 });
 export type ClientProfileInput = z.infer<typeof clientProfileSchema>;
 

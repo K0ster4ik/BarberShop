@@ -52,7 +52,9 @@ async function Bookings({
         })
       : null,
   ]);
-  const { page, ...values } = filters;
+  // Номер страницы берётся из ответа: за пределами списка он сводится к последней.
+  const { period, status, masterId, query } = filters;
+  const values = { period, status, masterId, query };
   const filtered =
     values.query !== "" || values.status !== null || values.masterId !== null;
 
@@ -99,7 +101,7 @@ async function Bookings({
       )}
 
       <Pager
-        page={page}
+        page={list.page}
         pageCount={list.pageCount}
         href={(target) => `/admin/bookings${toSearch(values, target)}`}
       />

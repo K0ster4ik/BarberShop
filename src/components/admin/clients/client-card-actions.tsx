@@ -252,57 +252,40 @@ function TagsForm({
   const [checked, setChecked] = useState(() => new Set(selected));
   const [pending, startTransition] = useTransition();
   // Новые и удалённые теги приходят с сервера после refresh(): props обновляются.
+  const toggle = (id: string, on: boolean) =>
+    setChecked((current) => {
+      const copy = new Set(current);
+      if (on) copy.add(id);
+      else copy.delete(id);
+      return copy;
+    });
 
   return (
     <div className="flex flex-col gap-4">
+      {/* Выбор тегов этого клиента; справочник тегов салона — ниже, свёрнут. */}
       {tags.length === 0 ? (
         <p className="text-sm text-muted-foreground">
-          Тегов пока нет — заведите первый ниже.
+          Тегов пока нет — заведите первый в справочнике ниже.
         </p>
       ) : (
         <ul className="flex flex-col gap-1">
           {tags.map((tag) => (
-            <li key={tag.id} className="flex items-center gap-2">
-              <label className="flex min-h-11 flex-1 cursor-pointer items-center gap-3 rounded-md px-2 hover:bg-muted/60">
+            <li key={tag.id}>
+              <label className="flex min-h-11 cursor-pointer items-center gap-3 rounded-md px-2 hover:bg-muted/60">
                 <Checkbox
                   checked={checked.has(tag.id)}
-                  onCheckedChange={(next) =>
-                    setChecked((current) => {
-                      const copy = new Set(current);
-                      if (next) copy.add(tag.id);
-                      else copy.delete(tag.id);
-                      return copy;
-                    })
-                  }
+                  onCheckedChange={(next) => toggle(tag.id, next === true)}
                 />
                 <TagBadge name={tag.name} color={tag.color} />
                 <span className="ml-auto text-xs text-muted-foreground tabular-nums">
-                  {tag.clients}
+                  {tag.clients}{" "}
+                  {plural(tag.clients, ["клиент", "клиента", "клиентов"])}
                 </span>
               </label>
-              <ConfirmAction
-                title={`Удалить тег «${tag.name}»?`}
-                description={
-                  tag.clients > 0
-                    ? `Тег снимется у ${tag.clients} ${plural(tag.clients, ["клиента", "клиентов", "клиентов"])}.`
-                    : "Тег ни у кого не стоит."
-                }
-                action={() => removeTag(tag.id)}
-                trigger={
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label={`Удалить тег «${tag.name}»`}
-                  >
-                    <Trash2 aria-hidden />
-                  </Button>
-                }
-              />
             </li>
           ))}
         </ul>
       )}
-      <NewTagForm />
       <Button
         className="w-full sm:w-auto"
         disabled={pending}
@@ -319,13 +302,58 @@ function TagsForm({
           })
         }
       >
-        Сохранить теги
+        Сохранить теги клиента
       </Button>
+      <details className="group rounded-lg border p-3 [&_summary::-webkit-details-marker]:hidden">
+        <summary className="flex min-h-11 cursor-pointer items-center justify-between gap-2 text-sm font-medium">
+          Справочник тегов салона
+          <span className="text-muted-foreground group-open:hidden">
+            новый тег, удаление
+          </span>
+        </summary>
+        <div className="mt-3 flex flex-col gap-3">
+          <NewTagForm onCreated={(id) => toggle(id, true)} />
+          {tags.length > 0 && (
+            <ul className="flex flex-col gap-1">
+              {tags.map((tag) => (
+                <li
+                  key={tag.id}
+                  className="flex min-h-11 items-center gap-3 px-2"
+                >
+                  <TagBadge name={tag.name} color={tag.color} />
+                  <span className="ml-auto text-xs text-muted-foreground">
+                    удалить у всех
+                  </span>
+                  <ConfirmAction
+                    title={`Удалить тег «${tag.name}»?`}
+                    description={
+                      tag.clients > 0
+                        ? `Тег снимется у ${tag.clients} ${plural(tag.clients, ["клиента", "клиентов", "клиентов"])}.`
+                        : "Тег ни у кого не стоит."
+                    }
+                    action={() => removeTag(tag.id)}
+                    trigger={
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label={`Удалить тег «${tag.name}» у всех клиентов`}
+                      >
+                        <Trash2 aria-hidden />
+                      </Button>
+                    }
+                  />
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </details>
     </div>
   );
 }
 
-function NewTagForm() {
+/** Новый тег сразу отмечается у клиента — остаётся сохранить выбор. */
+function NewTagForm({ onCreated }: { onCreated: (id: string) => void }) {
   const form = useForm<TagInput>({
     resolver: zodResolver(tagSchema),
     defaultValues: { name: "", color: "amber" },
@@ -336,7 +364,10 @@ function NewTagForm() {
       className="flex flex-col gap-3 rounded-lg border border-dashed p-3"
       onSubmit={form.handleSubmit(async (values) => {
         const result = await submitAction(form, () => addTag(values));
-        if (result?.ok) form.reset({ name: "", color: values.color });
+        if (result?.ok) {
+          onCreated(result.data.id);
+          form.reset({ name: "", color: values.color });
+        }
       })}
     >
       <div className="grid gap-3 sm:grid-cols-[1fr_10rem]">
@@ -390,31 +421,6 @@ export function ClientNotes({
   });
   return (
     <div className="flex flex-col gap-4">
-      <form
-        noValidate
-        className="flex flex-col gap-2"
-        onSubmit={form.handleSubmit(async (values) => {
-          const result = await submitAction(form, () =>
-            addNote(clientId, values),
-          );
-          if (result?.ok) form.reset({ text: "" });
-        })}
-      >
-        <TextareaField
-          control={form.control}
-          name="text"
-          label="Новая заметка"
-          rows={2}
-        />
-        <Button
-          type="submit"
-          variant="outline"
-          className={cn(TOUCH, "w-fit")}
-          disabled={form.formState.isSubmitting}
-        >
-          Добавить заметку
-        </Button>
-      </form>
       {notes.length === 0 ? (
         <p className="text-sm text-muted-foreground">
           Заметок пока нет. Здесь удобно держать то, что важно помнить: «любит
@@ -450,6 +456,31 @@ export function ClientNotes({
           ))}
         </ul>
       )}
+      <form
+        noValidate
+        className="flex flex-col gap-2"
+        onSubmit={form.handleSubmit(async (values) => {
+          const result = await submitAction(form, () =>
+            addNote(clientId, values),
+          );
+          if (result?.ok) form.reset({ text: "" });
+        })}
+      >
+        <TextareaField
+          control={form.control}
+          name="text"
+          label="Новая заметка"
+          rows={2}
+        />
+        <Button
+          type="submit"
+          variant="outline"
+          className={cn(TOUCH, "w-fit")}
+          disabled={form.formState.isSubmitting}
+        >
+          Добавить заметку
+        </Button>
+      </form>
     </div>
   );
 }

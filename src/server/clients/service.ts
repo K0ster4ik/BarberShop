@@ -106,6 +106,8 @@ export async function setClientTags(
   const ids = [...new Set(tagIds)];
   await assertVisible(db, staff, clientId);
   await db.$transaction(async (tx) => {
+    // Иначе два одновременных сохранения разных наборов слились бы в один.
+    await tx.$queryRaw`SELECT id FROM "Client" WHERE id = ${clientId} FOR UPDATE`;
     const known = await tx.tag.count({ where: { id: { in: ids } } });
     if (known !== ids.length) {
       throw new DomainError("Тег удалили — обновите страницу.");

@@ -13,6 +13,7 @@ import {
 import { TagBadge } from "@/components/admin/clients/tag-badge";
 import { PageSkeleton } from "@/components/admin/page-skeleton";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { formatDiscount, formatMoney, kopecksToRubles } from "@/lib/money";
 import { formatPhone } from "@/lib/phone";
 import { plural } from "@/lib/plural";
@@ -135,7 +136,12 @@ async function ClientCard({
         )}
       </div>
 
-      <dl className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <dl
+        className={cn(
+          "grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4",
+          !manager && "order-last", // мастеру важнее записи и заметки
+        )}
+      >
         <Stat label={manager ? "Визитов" : "Визитов к вам"}>
           {stats.visits}
         </Stat>
@@ -163,12 +169,14 @@ async function ClientCard({
             ? formatDiscount(client.discountKind, client.discountValue)
             : "нет"}
         </Stat>
-        <Stat label="Записей впереди">{stats.upcoming || "—"}</Stat>
+        <Stat label={manager ? "Записей впереди" : "Ваших записей впереди"}>
+          {stats.upcoming || "—"}
+        </Stat>
       </dl>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_24rem] lg:items-start">
         <Panel
-          title={manager ? "Визиты" : "Визиты к вам"}
+          title={manager ? "Записи" : "Записи к вам"}
           action={
             client.bookings.length > VISITS_SHOWN && (
               <Link
@@ -243,9 +251,11 @@ async function ClientCard({
 
 function Stat({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="flex flex-col gap-1 rounded-lg border bg-card p-4">
+    <div className="flex flex-col gap-0.5 rounded-lg border bg-card p-3 sm:gap-1 sm:p-4">
       <dt className="text-sm text-muted-foreground">{label}</dt>
-      <dd className="text-xl font-semibold tabular-nums">{children}</dd>
+      <dd className="text-lg font-semibold tabular-nums sm:text-xl">
+        {children}
+      </dd>
     </div>
   );
 }

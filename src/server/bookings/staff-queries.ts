@@ -316,31 +316,33 @@ export async function listBookings(
       },
     }),
   };
-  const [total, rows] = await Promise.all([
-    db.booking.count({ where }),
-    db.booking.findMany({
-      where,
-      orderBy: {
-        startsAt: filters.period === "upcoming" ? "asc" : "desc",
-      },
-      skip: (filters.page - 1) * BOOKINGS_PAGE_SIZE,
-      take: BOOKINGS_PAGE_SIZE,
-      select: {
-        id: true,
-        startsAt: true,
-        status: true,
-        source: true,
-        totalPrice: true,
-        client: { select: { name: true, phone: true } },
-        master: { select: { name: true } },
-        items: { orderBy: { sortOrder: "asc" }, select: { serviceName: true } },
-        payments: { select: { amount: true } },
-      },
-    }),
-  ]);
+  const total = await db.booking.count({ where });
+  // Номер страницы из адреса за пределами списка сводится к последней странице.
+  const pageCount = Math.max(1, Math.ceil(total / BOOKINGS_PAGE_SIZE));
+  const page = Math.min(filters.page, pageCount);
+  const rows = await db.booking.findMany({
+    where,
+    orderBy: {
+      startsAt: filters.period === "upcoming" ? "asc" : "desc",
+    },
+    skip: (page - 1) * BOOKINGS_PAGE_SIZE,
+    take: BOOKINGS_PAGE_SIZE,
+    select: {
+      id: true,
+      startsAt: true,
+      status: true,
+      source: true,
+      totalPrice: true,
+      client: { select: { name: true, phone: true } },
+      master: { select: { name: true } },
+      items: { orderBy: { sortOrder: "asc" }, select: { serviceName: true } },
+      payments: { select: { amount: true } },
+    },
+  });
   return {
     total,
-    pageCount: Math.max(1, Math.ceil(total / BOOKINGS_PAGE_SIZE)),
+    page,
+    pageCount,
     rows: rows.map(({ items, payments, ...row }) => ({
       ...row,
       services: items.map((item) => item.serviceName).join(", "),

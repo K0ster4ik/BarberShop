@@ -84,7 +84,7 @@ export async function addTag(
     const tag = await clients.createTag(db, staff, tagSchema.parse(input));
     refresh();
     return tag;
-  }, "Тег добавлен");
+  }, "Тег создан и отмечен — сохраните теги клиента");
 }
 
 export async function removeTag(tagId: string): Promise<ActionResult> {

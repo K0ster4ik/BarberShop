@@ -118,7 +118,10 @@ function FilterSelect({
 }) {
   return (
     <Select value={value} onValueChange={onChange}>
-      <SelectTrigger aria-label={label} className="h-11 w-full sm:h-9 sm:w-44">
+      <SelectTrigger
+        aria-label={label}
+        className="w-full data-[size=default]:h-11 sm:w-44 sm:data-[size=default]:h-9"
+      >
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
