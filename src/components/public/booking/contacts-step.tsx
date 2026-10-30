@@ -1,12 +1,13 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowLeft, ChevronDown, Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useId, useRef, useState, useTransition } from "react";
 import { Controller, useForm } from "react-hook-form";
+import { toast } from "sonner";
 import { TextareaField, TextField } from "@/components/forms/fields";
-import { runWithToast, submitAction } from "@/components/forms/submit";
+import { NETWORK_ERROR, submitAction } from "@/components/forms/submit";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -28,16 +29,11 @@ import {
 import type { QuoteView } from "@/server/bookings/quote-view";
 import { getBookingQuote, submitBooking } from "@/server/bookings/site-actions";
 import { formatDuration } from "./format";
+import { type CountryOption, CountryPicker } from "./country-picker";
 import { BookingFrame } from "./frame";
 import { PriceBreakdown } from "./price-breakdown";
 import { SelectionSummary } from "./selection-summary";
 import { ANY_MASTER, wizardHref } from "./wizard-state";
-
-export type CountryOption = {
-  code: string; // RU
-  name: string; // Россия
-  dialCode: string; // +7
-};
 
 const FORM_ID = "booking-contacts";
 
@@ -76,6 +72,9 @@ export function ContactsStep({
   const [quoting, startQuote] = useTransition();
   const quotedFor = useRef({ phone: "", promoCode: "" });
   const quoteRequest = useRef(0);
+  // Запись отправлена: при переходе на страницу записи поле телефона теряет фокус,
+  // и пересчёт цены ответил бы «время заняли» — нашей же записью.
+  const submitted = useRef(false);
   const phoneId = useId();
   const promoId = useId();
   const consentId = useId();
@@ -109,13 +108,20 @@ export function ContactsStep({
   function requote(promoCode: string) {
     const { phone, country } = form.getValues();
     const e164 = normalizePhone(phone, country as CountryCode) ?? "";
+    if (submitted.current) return;
     const request = ++quoteRequest.current;
     startQuote(async () => {
-      const result = await runWithToast(() =>
-        getBookingQuote({ ...selection, country, phone: e164, promoCode }),
-      );
-      // Клиент успел поменять телефон или код — этот ответ уже не про то, что на экране.
+      const result = await getBookingQuote({
+        ...selection,
+        country,
+        phone: e164,
+        promoCode,
+      }).catch(() => null);
+      // Клиент успел поменять телефон или код или уже записался — ответ устарел, и его
+      // ошибка («время заняли» — нашей же записью) показываться не должна.
       if (request !== quoteRequest.current) return;
+      if (!result) toast.error(NETWORK_ERROR);
+      else if (!result.ok) toast.error(result.error);
       if (result?.ok) {
         setQuote(result.data);
         quotedFor.current = { phone: e164, promoCode };
@@ -135,6 +141,9 @@ export function ContactsStep({
   }
 
   async function send(values: BookingContacts, website: string) {
+    // Пересчёт, запущенный уходом фокуса с телефона, больше не нужен.
+    quoteRequest.current += 1;
+    submitted.current = true;
     const result = await submitAction(form, () =>
       submitBooking({
         ...selection,
@@ -145,6 +154,9 @@ export function ContactsStep({
         expectedDurationMin: quote.durationMin,
       }),
     );
+    // Ответ без перехода (ошибка, изменилась цена) — клиент остаётся на шаге.
+    // null — переход на страницу записи или обрыв сети: тогда флаг не снимаем.
+    if (result) submitted.current = false;
     const fresh = result?.ok ? result.data.changed : null;
     if (fresh) {
       setChangeNotice(describeChange(quote, fresh));
@@ -243,63 +255,38 @@ export function ContactsStep({
 
           <Field data-invalid={!!form.formState.errors.phone}>
             <FieldLabel htmlFor={phoneId}>Телефон</FieldLabel>
-            <div className="flex gap-2">
+            {/* Одно поле: код страны и номер в общей рамке. */}
+            <div
+              data-invalid={!!form.formState.errors.phone}
+              className="flex h-11 w-full min-w-0 items-stretch rounded-lg border border-input text-base transition-colors focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50 data-[invalid=true]:border-destructive data-[invalid=true]:ring-3 data-[invalid=true]:ring-destructive/20 md:text-sm dark:bg-input/30"
+            >
               <Controller
                 control={form.control}
                 name="country"
-                render={({ field }) => {
-                  const selected = countries.find(
-                    (country) => country.code === field.value,
-                  );
-                  // Закрытый список браузер обрезает с конца, и у длинных названий
-                  // пропадал бы код. Поэтому видна своя подпись: название сжимается,
-                  // код — всегда целиком. Сам список остаётся обычным <select>.
-                  return (
-                    <div className="relative h-11 w-36 shrink-0 rounded-lg border border-input text-base focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50 md:text-sm dark:bg-input/30">
-                      <span
-                        className="pointer-events-none flex h-full items-center gap-1 pr-7 pl-2"
-                        aria-hidden
-                      >
-                        <span className="truncate">{selected?.name}</span>
-                        <span className="shrink-0 tabular-nums">
-                          {selected?.dialCode}
-                        </span>
-                      </span>
-                      <ChevronDown
-                        className="pointer-events-none absolute top-1/2 right-2 size-4 -translate-y-1/2 opacity-60"
-                        aria-hidden
-                      />
-                      <select
-                        {...field}
-                        aria-label="Страна"
-                        onChange={(event) => {
-                          field.onChange(event);
-                          onPhoneBlur();
-                        }}
-                        className="absolute inset-0 size-full cursor-pointer appearance-none opacity-0"
-                      >
-                        {countries.map((country) => (
-                          <option key={country.code} value={country.code}>
-                            {country.name} {country.dialCode}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  );
-                }}
+                render={({ field }) => (
+                  <CountryPicker
+                    countries={countries}
+                    value={field.value}
+                    phoneInputId={phoneId}
+                    onChange={(code) => {
+                      field.onChange(code);
+                      onPhoneBlur();
+                    }}
+                  />
+                )}
               />
               <Controller
                 control={form.control}
                 name="phone"
                 render={({ field, fieldState }) => (
-                  <Input
+                  <input
                     {...field}
                     id={phoneId}
                     type="tel"
                     inputMode="tel"
-                    autoComplete="tel"
+                    autoComplete="tel-national"
                     placeholder="999 123-45-67"
-                    className="h-11"
+                    className="h-full min-w-0 flex-1 rounded-r-lg bg-transparent px-3 outline-none placeholder:text-muted-foreground"
                     aria-invalid={fieldState.invalid}
                     onBlur={() => {
                       field.onBlur();
@@ -310,8 +297,8 @@ export function ContactsStep({
               />
             </div>
             <FieldDescription>
-              Выберите страну и введите номер без кода. Номер, начинающийся с
-              «+», определит страну сам.
+              Номер без кода страны. Код меняется нажатием на него, а номер,
+              начинающийся с «+», определит страну сам.
             </FieldDescription>
             {form.formState.errors.phone && (
               <FieldError errors={[form.formState.errors.phone]} />

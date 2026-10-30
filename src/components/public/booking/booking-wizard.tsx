@@ -17,7 +17,8 @@ import { quoteBooking } from "@/server/bookings/quote";
 import { toQuoteView } from "@/server/bookings/quote-view";
 import { db } from "@/server/db";
 import { DomainError } from "@/server/errors";
-import { type CountryOption, ContactsStep } from "./contacts-step";
+import { ContactsStep } from "./contacts-step";
+import type { CountryOption } from "./country-picker";
 import {
   formatDuration,
   formatDurationRange,
@@ -207,6 +208,7 @@ function countryOptions(): CountryOption[] {
     code,
     name: names.of(code) ?? code,
     dialCode: `+${getCountryCallingCode(code as never)}`,
+    popular: FIRST.includes(code),
   });
   const rest = getCountries()
     .filter((code) => !FIRST.includes(code))
