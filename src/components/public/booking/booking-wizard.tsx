@@ -202,17 +202,14 @@ const FIRST = ["RU", "BY", "KZ", "UZ", "KG", "AM", "GE", "AZ", "TJ"];
 
 function countryOptions(): CountryOption[] {
   const names = new Intl.DisplayNames(["ru"], { type: "region" });
+  // «Россия +7»: название слева, код справа — список читается по названиям.
   const option = (code: (typeof FIRST)[number]) => ({
     code,
-    label: `+${getCountryCallingCode(code as never)} ${names.of(code) ?? code}`,
+    label: `${names.of(code) ?? code} +${getCountryCallingCode(code as never)}`,
   });
   const rest = getCountries()
     .filter((code) => !FIRST.includes(code))
     .map(option)
-    .sort((a, b) =>
-      a.label
-        .replace(/^\+\d+ /, "")
-        .localeCompare(b.label.replace(/^\+\d+ /, ""), "ru"),
-    );
+    .sort((a, b) => a.label.localeCompare(b.label, "ru"));
   return [...FIRST.map(option), ...rest];
 }

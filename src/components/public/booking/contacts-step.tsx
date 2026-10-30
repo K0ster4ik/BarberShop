@@ -251,7 +251,7 @@ export function ContactsStep({
                       field.onChange(event);
                       onPhoneBlur();
                     }}
-                    className="h-11 w-28 shrink-0 rounded-lg border border-input bg-transparent px-2 text-base outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm"
+                    className="h-11 w-36 shrink-0 rounded-lg border border-input bg-transparent px-2 text-base outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm"
                   >
                     {countries.map((country) => (
                       <option key={country.code} value={country.code}>
