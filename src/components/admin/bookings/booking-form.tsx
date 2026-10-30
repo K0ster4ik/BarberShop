@@ -75,14 +75,20 @@ export function NewBookingForm({
   defaults,
 }: {
   masters: BookingFormMaster[];
-  defaults: { masterId: string | null; date: string; time: string };
+  defaults: {
+    masterId: string | null;
+    date: string;
+    time: string;
+    phone: string;
+    name: string;
+  };
 }) {
   const router = useRouter();
   const form = useForm<StaffBookingInput>({
     resolver: zodResolver(staffBookingSchema),
     defaultValues: {
-      phone: "",
-      name: "",
+      phone: defaults.phone,
+      name: defaults.name,
       masterId: defaults.masterId ?? masters[0]?.id ?? "",
       serviceIds: [],
       date: defaults.date,

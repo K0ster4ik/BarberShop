@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
@@ -11,6 +11,7 @@ import {
 import { StatusBadge } from "@/components/admin/bookings/status-badge";
 import { PageHeader } from "@/components/admin/page-header";
 import { PageSkeleton } from "@/components/admin/page-skeleton";
+import { Pager } from "@/components/admin/pager";
 import { Button } from "@/components/ui/button";
 import { formatMoney } from "@/lib/money";
 import { formatPhone } from "@/lib/phone";
@@ -97,28 +98,11 @@ async function Bookings({
         </>
       )}
 
-      {list.pageCount > 1 && (
-        <nav
-          aria-label="Страницы"
-          className="flex items-center justify-between gap-3"
-        >
-          <PageLink
-            href={toSearch(values, page - 1)}
-            disabled={page <= 1}
-            label="Назад"
-            icon="prev"
-          />
-          <span className="text-sm text-muted-foreground">
-            Страница {page} из {list.pageCount}
-          </span>
-          <PageLink
-            href={toSearch(values, page + 1)}
-            disabled={page >= list.pageCount}
-            label="Дальше"
-            icon="next"
-          />
-        </nav>
-      )}
+      <Pager
+        page={page}
+        pageCount={list.pageCount}
+        href={(target) => `/admin/bookings${toSearch(values, target)}`}
+      />
     </div>
   );
 }
@@ -223,37 +207,5 @@ function BookingTable({
         </tbody>
       </table>
     </div>
-  );
-}
-
-function PageLink({
-  href,
-  disabled,
-  label,
-  icon,
-}: {
-  href: string;
-  disabled: boolean;
-  label: string;
-  icon: "prev" | "next";
-}) {
-  const content = (
-    <>
-      {icon === "prev" && <ChevronLeft aria-hidden />}
-      {label}
-      {icon === "next" && <ChevronRight aria-hidden />}
-    </>
-  );
-  if (disabled) {
-    return (
-      <Button variant="outline" className="h-11 sm:h-8" disabled>
-        {content}
-      </Button>
-    );
-  }
-  return (
-    <Button asChild variant="outline" className="h-11 sm:h-8">
-      <Link href={`/admin/bookings${href}`}>{content}</Link>
-    </Button>
   );
 }

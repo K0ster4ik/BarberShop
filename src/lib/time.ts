@@ -147,6 +147,17 @@ export function formatSalonDayTime(instant: Date): string {
   return dayTimeFormat.format(instant);
 }
 
+const birthdayFormat = new Intl.DateTimeFormat("ru-RU", {
+  day: "numeric",
+  month: "long",
+  timeZone: "UTC",
+});
+
+/** День рождения из колонки @db.Date (полночь UTC) → «17 мая». */
+export function formatBirthday(date: Date): string {
+  return birthdayFormat.format(date);
+}
+
 /** «14:20» по часам салона. */
 export function formatSalonTime(instant: Date): string {
   return minutesToTime(toSalonMinutes(instant));

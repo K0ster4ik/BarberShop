@@ -211,7 +211,12 @@ async function BookingCard({
 
         <div className="flex flex-col gap-6">
           <Panel title="Клиент">
-            <p className="font-medium">{booking.client.name}</p>
+            <Link
+              href={`/admin/clients/${booking.client.id}`}
+              className="w-fit font-medium underline-offset-4 hover:underline"
+            >
+              {booking.client.name}
+            </Link>
             <a
               href={`tel:${booking.client.phone}`}
               className="inline-flex min-h-11 w-fit items-center gap-2 text-primary underline-offset-4 hover:underline sm:min-h-0"

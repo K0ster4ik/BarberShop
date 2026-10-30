@@ -35,6 +35,9 @@ async function NewBooking({
   // Из календаря приходят мастер, день и время — форма открывается с ними.
   const masterId = typeof params.master === "string" ? params.master : null;
   const time = typeof params.time === "string" ? params.time : "";
+  // Из карточки клиента приходят его телефон и имя.
+  const text = (value: unknown, max: number) =>
+    typeof value === "string" ? value.slice(0, max) : "";
 
   return (
     <div className="flex flex-col gap-6">
@@ -65,6 +68,8 @@ async function NewBooking({
               new Date(),
             ),
             time: timeToMinutes(time) === null ? "" : time,
+            phone: text(params.phone, 40),
+            name: text(params.name, 60),
           }}
         />
       )}
